@@ -1,7 +1,7 @@
-.PHONY: help base lint test check up down e2e licences hooks
+.PHONY: help base lint test check up down e2e bench-large licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
-UV_RUN = uv run --python $(PY) --with ./libs/geopipe --with pytest --with ruff
+UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with pytest --with ruff
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -27,7 +27,10 @@ down:  ## stop the stack and delete its data
 	docker compose down -v
 
 e2e: up  ## end-to-end tests against the stack; artefacts in data/out/
-	docker compose run --rm --build tools pytest -q tests/stack
+	docker compose run --rm --build tools pytest -q -m "not slow" tests/stack
+
+bench-large: up  ## 2 GB raster: slicer memory and COG vs non-COG timing (slow)
+	docker compose run --rm --build tools pytest -q -s -m slow tests/stack
 
 licences:  ## fail on AGPL/GPL Python packages in every image
 	@for img in $$(docker compose config --images | grep -v -e valkey -e seaweedfs); do \

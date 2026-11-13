@@ -19,18 +19,28 @@ RECTS = [(cx * 640 + 200, cy * 640 + 200, 100, 80)
          for cx, cy in ((0, 0), (1, 2), (3, 1), (4, 4), (2, 3))]
 
 
-def make_synth_tif(path: str) -> None:
-    ds = gdal.GetDriverByName("GTiff").Create(path, SIZE, SIZE, 3, gdal.GDT_Byte,
-                                              ["TILED=YES", "COMPRESS=DEFLATE"])
+def build_tif(path: str, width: int, height: int, rects, bands: int = 3,
+              dtype=gdal.GDT_Byte, value: int = 255, nodata: int | None = None,
+              options=("TILED=YES", "COMPRESS=DEFLATE", "SPARSE_OK=TRUE")) -> None:
+    """Georeferenced GeoTIFF, zero everywhere except bright rectangles."""
+    ds = gdal.GetDriverByName("GTiff").Create(path, width, height, bands, dtype, list(options))
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(EPSG)
     ds.SetProjection(srs.ExportToWkt())
     ds.SetGeoTransform(GT)
-    for b in (1, 2, 3):
+    itemsize = {gdal.GDT_Byte: 1, gdal.GDT_UInt16: 2}[dtype]
+    pixel = int(value).to_bytes(itemsize, "little")
+    for b in range(1, bands + 1):
         band = ds.GetRasterBand(b)
-        for x, y, w, h in RECTS:
-            band.WriteRaster(x, y, w, h, b"\xff" * (w * h))
-    ds.FlushCache()
+        if nodata is not None:
+            band.SetNoDataValue(nodata)
+        for x, y, w, h in rects:
+            band.WriteRaster(x, y, w, h, pixel * (w * h))
+    ds = None  # close: the GeoTIFF is incomplete on disk until the dataset is released
+
+
+def make_synth_tif(path: str) -> None:
+    build_tif(path, SIZE, SIZE, RECTS)
 
 
 @pytest.fixture(scope="session")
@@ -67,3 +77,21 @@ def upload_photo_tif(s3, key: str = "cats.tif") -> str:
     ds = None  # close: the GeoTIFF is incomplete on disk until the dataset is released
     s3.upload_file(tif, BUCKET, key)
     return key
+
+
+def run_job(r, s3, key: str, timeout: int = 120, **options):
+    """Submit a job, wait for done, return (status, geojson)."""
+    import json
+    import time
+
+    from geopipe.jobs import submit_job
+    from geopipe.messages import Options
+
+    job_id = submit_job(r, s3, BUCKET, key, options=Options(**options))
+    deadline = time.time() + timeout
+    while r.hget(f"job:{job_id}:status", "state") != "done":
+        assert time.time() < deadline, r.hgetall(f"job:{job_id}:status")
+        time.sleep(1)
+    status = r.hgetall(f"job:{job_id}:status")
+    bucket, out_key = status["output_uri"].removeprefix("s3://").split("/", 1)
+    return status, json.loads(s3.get_object(Bucket=bucket, Key=out_key)["Body"].read())
