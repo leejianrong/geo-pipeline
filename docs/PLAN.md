@@ -33,7 +33,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 - Postprocess: merge, cross-tile NMS, georeference, GeoJSON to S3.
 - Failure handling: redelivery, idempotency, partial results flagged `incomplete`.
 - Visualisation and analytics (V3b): matplotlib PNGs for overlays, tile grid, distributions and stage latency.
-- Benchmark harness on the SpaceNet dataset (ADR-0010).
+- Benchmark harness on COCO (V5); SpaceNet and a local fine-tune follow in V5b (ADR-0010).
 - Licence gate: no AGPL (or other strong-copyleft) component in the stack (ADR-0009).
 
 **Post-MVP (designed for, not built)**
@@ -43,7 +43,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 - Later: Postgres job store, autoscaling, Kubernetes.
 
 **Out**
-- Productised training; one fine-tune recipe exists only to produce benchmark weights (V5).
+- Productised training; one fine-tune recipe exists only to produce benchmark weights (V5b).
 - Oriented boxes and segmentation. Axis-aligned boxes only.
 - Non-GeoTIFF inputs.
 - Any AGPL software, including Garage, MinIO and Ultralytics.
@@ -95,7 +95,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 | S4 | Postprocess: per-job Redis hash, finalise on count or timeout, NMS, georeference, GeoJSON | 0005, 0006 |
 | S5 | Shared `libs/geopipe`: versioned message models, `submit_job`, status helpers, S3 client, tiling math | 0008 |
 | S6 | Compose stack, object store and Valkey | 0001, 0009 |
-| S7 | Benchmark harness and SpaceNet converters | 0010 |
+| S7 | Benchmark harness (COCO now, SpaceNet converters later) | 0010 |
 
 ## Affordances
 
@@ -142,9 +142,9 @@ Test through the Valkey/S3 boundary, which is what other services and a future A
 
 ## Open risks
 
-- **No aerial weights.** Off-the-shelf COCO weights fail on overhead imagery. V2 proves plumbing only. V5 includes a one-off fine-tune on SpaceNet buildings to get benchmark weights. Earliest reveal: V2.
+- **No aerial weights.** Off-the-shelf COCO weights fail on overhead imagery. V2 proves plumbing only. V5 benchmarks on COCO, where the shipped weights work; V5b adds a one-off fine-tune on SpaceNet buildings, run locally on the RTX 3080 Ti (no rental). Earliest reveal: V2.
 - **ML wheels vs Python versions.** RF-DETR/torch and YOLOX are unverified on 3.13. Detector image defaults to 3.12; YOLOX runs through ONNX Runtime to avoid the `yolox` and torch dependency at inference. Earliest reveal: V2.
 - **SeaweedFS compatibility** with GDAL's S3 client (range reads, path-style addressing). Earliest reveal: V1.
-- **Dataset specifics.** SpaceNet GeoTIFF band layout, bit depth and footprint format must be inspected with `gdalinfo` before V5 (sources conflict on 8- vs 16-bit).
+- **Dataset specifics.** SpaceNet GeoTIFF band layout, bit depth and footprint format must be inspected with `gdalinfo` before V5b; file sizes suggest 16-bit RGB tiles but that is inferred, not read.
 - **Licence claims** for Valkey, SeaweedFS and YOLOX come from search results or memory; see ADR-0009.
-- **SpaceNet access cost.** One source says downloads can be requester-pays on AWS, which needs an AWS account; check in V5 step 1.
+- **SpaceNet access** was checked (ADR-0010): public bucket, anonymous access works, CC BY-SA 4.0, per-tile files allow a small subset.

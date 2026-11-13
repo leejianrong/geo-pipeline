@@ -159,35 +159,57 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - Backoff doubles per delivery and is capped.
 
-## V5: YOLOX backend and SpaceNet benchmark
+## V5: YOLOX backend and COCO benchmark
 
 **Delivers:** R4, R10
 
 **Build plan**
 
-1. Inspect one SpaceNet GeoTIFF with `gdalinfo` (bands, bit depth, CRS) and confirm licence and download path (ADR-0010). Download a small subset to `data/` (gitignored).
-2. YOLOX backend via ONNX Runtime (Apache-2.0 model; no Ultralytics).
-3. Converter: SpaceNet building footprint polygons → axis-aligned ground-truth boxes in map coordinates.
-4. One-off, documented fine-tune of RF-DETR and YOLOX on a SpaceNet train subset (single class `building`) to produce benchmark weights.
-5. `geopipe bench`: run jobs over a held-out split, match detections to ground truth by IoU in map space, report precision, recall, F1 and mAP@0.5, plus latency per megapixel, as a markdown report.
+1. YOLOX backend through ONNX Runtime (Apache-2.0 model, `yolox_s.onnx` baked into the detector image; no Ultralytics).
+2. `geopipe bench`: wrap COCO images as GeoTIFFs, run each through the real pipeline per model, convert the GeoJSON back to COCO detections, and score with `pycocotools` plus precision/recall/F1 at IoU 0.5 and latency. Writes a markdown report and PNG plots (precision-recall curves, IoU histogram, latency).
+3. `make coco-data` fetches COCO's annotations once (241 MB zip, only `instances_val2017.json` is kept); images are fetched per file as needed.
+4. A 5-image annotation excerpt is committed as a test fixture.
 
-**Demo:** one report comparing RF-DETR Small and YOLOX on the same held-out SpaceNet tiles.
+**Demo:** one report comparing RF-DETR Small and YOLOX-s on the same 200 COCO val images: mAP, F1, latency per image.
 
-**Rests on assumptions:** Q13 (axis-aligned boxes), fine-tuned weights are obtainable on this hardware (CPU fine-tuning may be too slow; may need a rented GPU, see `runpod-jobs`).
+**Rests on assumptions:** COCO scores for everyday objects only; they do not predict overhead performance (see V5b).
 
 ### Test plan
 
 #### End-to-end
-- `geopipe bench` on 20 held-out images produces a report with metrics for both backends.
+- `geopipe bench` on the 5-image fixture produces a report and plots for both models, with RF-DETR mAP@.5 above a sanity floor.
 - Same inputs and config give identical metrics (deterministic).
 
 #### Integration
-- Ground truth scored against itself yields precision, recall and mAP of 1.0.
-- Converted ground-truth boxes round-trip pixel → map → pixel within 1 px.
+- A YOLOX job through the stack returns plausible detections on the cats photo (two cats found).
 
 #### Unit
-- Polygon → axis-aligned box encloses the polygon.
-- Matching and mAP agree with a hand-computed small case.
+- YOLOX letterbox and decode: boxes map back to original pixel coordinates; NMS and the confidence threshold are applied.
+- Matching and P/R/F1 agree with a hand-computed case; perfect detections score mAP 1.0.
+
+## V5b: SpaceNet benchmark and fine-tune (later)
+
+**Delivers:** R10 on overhead imagery
+
+**Build plan**
+
+1. Fetch a small subset (about 300 tiles, ~750 MB) of SpaceNet 2 `PS-RGB` and `geojson_buildings` with anonymous S3 access; inspect one tile with `gdalinfo` (bands, bit depth, CRS). CC BY-SA 4.0, never committed (ADR-0010).
+2. Converter: footprint polygons to axis-aligned boxes in map coordinates, round-tripped through the geotransform.
+3. CUDA training image (shared with V7); one documented full fine-tune of RF-DETR Small and YOLOX-s on this machine's RTX 3080 Ti (single class `building`). No QLoRA: the models are small.
+4. Reuse the V5 harness with a SpaceNet loader and 16-bit stretch; report the same metrics.
+
+**Demo:** the V5 report, rerun on held-out SpaceNet tiles with fine-tuned weights.
+
+### Test plan
+
+#### End-to-end
+- `geopipe bench` on 20 held-out tiles reports metrics for both models.
+
+#### Integration
+- Ground truth scored against itself gives 1.0; converted boxes round-trip pixel to map to pixel within 1 px.
+
+#### Unit
+- A polygon's converted box encloses it.
 
 ## V6: HTTP API (post-MVP)
 
