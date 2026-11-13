@@ -20,6 +20,9 @@ gdal.UseExceptions()
 
 def slice_job(r, s3, job: Job) -> None:
     bus.set_status(r, job.job_id, "slicing")
+    # GDAL caches /vsis3/ listings and file state per process; a long-lived worker would
+    # otherwise miss objects uploaded (or replaced) since its previous job.
+    gdal.VSICurlClearCache()
     ds = gdal.Open(f"/vsis3/{job.bucket}/{job.key}")
     wkt = ds.GetProjection()
     if not wkt:
