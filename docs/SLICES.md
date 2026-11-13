@@ -59,12 +59,12 @@ Vertical increments, each ending in something demonstrable. MVP is V1–V5. V1 c
 ### Test plan
 
 #### End-to-end
-- On a known image with 3 clearly visible objects, output has ≥3 features with score ≥ conf.
+- A real photo (COCO val2017 #39769, two cats) wrapped as a GeoTIFF yields ≥2 `cat` features with score ≥ 0.5, all inside the raster bounds.
 - Switching `model=stub` ↔ `rfdetr` needs no change in other stages.
 
 #### Integration
 - Detector reads a tile PNG from S3 and emits a detection message with matching `job_id`/`idx`/`total`.
-- Missing weights fail startup with a clear error, not at the first message.
+- An unknown `DETECTOR_MODELS` entry fails startup with a clear error, not at the first message. (Weights are baked into the image, so "missing weights" cannot occur; custom weights arrive in V5.)
 
 #### Unit
 - Backend output normalises to the shared `Box` model.

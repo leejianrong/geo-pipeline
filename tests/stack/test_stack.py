@@ -4,7 +4,7 @@ import shutil
 import time
 import urllib.request
 
-from conftest import BUCKET, EPSG, GT, KEY, RECTS, SIZE
+from conftest import BUCKET, EPSG, GT, KEY, RECTS, SIZE, upload_photo_tif
 from osgeo import gdal, osr
 
 from geopipe import store
@@ -58,3 +58,21 @@ def test_round_trip_boxes_land_on_the_drawn_rectangles(stack):
         shutil.copy(local_tif, "/data/out/synth.tif")
         with open("/data/out/result.geojson", "wb") as f:
             f.write(body)
+
+
+def test_rfdetr_finds_both_cats_in_a_real_photo(stack):
+    r, s3, _ = stack
+    key = upload_photo_tif(s3)
+    job_id = submit_job(r, s3, BUCKET, key, options=Options(model="rfdetr", overlap=0, conf=0.5))
+    deadline = time.time() + 180
+    while r.hget(f"job:{job_id}:status", "state") != "done":
+        assert time.time() < deadline, r.hgetall(f"job:{job_id}:status")
+        time.sleep(1)
+
+    uri = r.hget(f"job:{job_id}:status", "output_uri")
+    bucket, out_key = uri.removeprefix("s3://").split("/", 1)
+    fc = json.loads(s3.get_object(Bucket=bucket, Key=out_key)["Body"].read())
+    assert fc["model"] == "rfdetr"
+    cats = [f for f in fc["features"] if f["properties"]["class_name"] == "cat"]
+    assert len(cats) >= 2 and all(f["properties"]["score"] >= 0.5 for f in cats)
+    assert all(0 <= v <= 640 for f in fc["features"] for v in f["properties"]["pixel_bbox"])

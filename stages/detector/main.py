@@ -1,36 +1,38 @@
-"""Detector: read a tile PNG, run the configured backend, emit boxes in tile pixel coordinates."""
+"""Detector: read a tile PNG, run the backend named in the job options, emit tile-pixel boxes."""
 
 import io
 import logging
+import os
 import socket
 
 import numpy as np
+from backends import BACKENDS, Backend
 from PIL import Image
 
 from geopipe import bus, store
-from geopipe.messages import DETECTIONS, TILES, Box, Detection, Tile
+from geopipe.messages import DETECTIONS, TILES, Detection, Tile
 
 
-def stub_detect(img: np.ndarray) -> list[Box]:
-    """Test backend: one box around all bright pixels (assumes at most one object per tile)."""
-    ys, xs = np.where(img.max(axis=2) > 128)
-    if xs.size == 0:
-        return []
-    return [Box(x1=float(xs.min()), y1=float(ys.min()), x2=float(xs.max() + 1),
-                y2=float(ys.max() + 1), score=1.0, class_id=0, class_name="bright")]
-
-
-def detect_tile(r, s3, tile: Tile) -> None:
+def detect_tile(r, s3, backends: dict[str, Backend], tile: Tile) -> None:
+    if tile.options.model not in backends:
+        raise ValueError(f"model {tile.options.model!r} is not enabled; have {sorted(backends)}")
     body = s3.get_object(Bucket=tile.tile_bucket, Key=tile.tile_key)["Body"].read()
     img = np.array(Image.open(io.BytesIO(body)).convert("RGB"))
+    boxes = backends[tile.options.model](img, tile.options.conf)
     # Count before publishing so the status is complete by the time postprocess says done.
     r.hincrby(f"job:{tile.job_id}:status", "tiles_detected", 1)
     bus.publish(r, DETECTIONS, Detection(tenant_id=tile.tenant_id, job_id=tile.job_id,
                                          idx=tile.idx, total=tile.total, window=tile.window,
-                                         boxes=stub_detect(img)))
+                                         boxes=boxes))
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    names = os.environ.get("DETECTOR_MODELS", "stub,rfdetr").split(",")
+    unknown = [n for n in names if n not in BACKENDS]
+    if unknown:
+        raise SystemExit(f"unknown DETECTOR_MODELS {unknown}; available: {sorted(BACKENDS)}")
+    backends = {n: BACKENDS[n]() for n in names}  # load everything up front: fail at startup
     r, s3 = bus.connect(), store.client()
-    bus.consume(r, TILES, "detector", socket.gethostname(), Tile, lambda t: detect_tile(r, s3, t))
+    bus.consume(r, TILES, "detector", socket.gethostname(), Tile,
+                lambda t: detect_tile(r, s3, backends, t))
