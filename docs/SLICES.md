@@ -105,29 +105,29 @@ Vertical increments, each ending in something demonstrable. MVP is V1–V5. V1 c
 
 **Build plan**
 
-1. Stages record timings and counts in the job status hash: slice, detect and finalise seconds, tiles, raw vs post-NMS box counts.
-2. `geopipe viz <job_id>` downloads the raster overview and GeoJSON and writes, with matplotlib:
-   - an overlay of detections on the input (uint16 rasters use the stored stretch),
-   - a tile-grid view with detections per tile and skipped nodata tiles,
-   - histograms of score, box size and class counts,
-   - stage latency and tiles-per-second bars across jobs.
-3. `geopipe report <job_id>` embeds those plots and a summary table in one self-contained HTML file.
-4. A short doc on opening raster + GeoJSON in QGIS.
+1. Stages record timings and counts in the job status hash: slice, summed detect and finalise seconds, raw vs post-NMS box counts, submit and done times.
+2. `geopipe viz <job_id>...` writes PNGs with matplotlib (vanilla, no server):
+   - an overlay of the final detections on the input (uint16 rasters use the stored stretch),
+   - a tile-grid view shaded by detections per tile, with nodata tiles that were skipped marked,
+   - histograms of score and box size, and counts per class,
+   - stage time and throughput bars comparing all the jobs given.
+3. A short doc on opening raster + GeoJSON in QGIS (`docs/qgis.md`).
 
-**Demo:** run the cats and synthetic jobs, run `geopipe report`, open the HTML: boxes on the image, tile grid, distributions, per-stage latency.
+An interactive dashboard is out of scope here. indah (the owner's reactive UI framework) is the candidate for it and for the V8 frontend.
+
+**Demo:** run the cats and synthetic jobs, run `geopipe viz` on both, open the PNGs: boxes on the image, tile grid, distributions, per-stage latency.
 
 ### Test plan
 
 #### End-to-end
-- `geopipe viz` on a finished job writes all PNGs and the HTML report, and the report opens offline.
-- A job with zero detections still produces a report.
+- `geopipe viz` on two finished jobs (one with detections, one with none) writes every PNG.
 
 #### Integration
-- Status hash contains slice, detect and finalise seconds and box counts after a job.
+- Status hash contains detect and finalise seconds, raw and final box counts, and submit/done times after a job.
 
 #### Unit
-- Overlay box-to-pixel mapping matches `pixel_bbox` for a downsampled image.
-- Histogram inputs are built correctly from a GeoJSON with and without features.
+- Distribution, per-tile count and throughput numbers are computed correctly, including empty input and a missing submit time.
+- Every plot renders with detections and with none.
 
 ## V4: Failure behaviour
 

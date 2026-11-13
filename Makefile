@@ -1,7 +1,7 @@
 .PHONY: help base lint test check up down e2e bench-large licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
-UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with pytest --with ruff
+UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pytest --with ruff
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'

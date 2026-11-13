@@ -39,6 +39,12 @@ $T geopipe download s3://imagery/tenants/local/results/$JOB.geojson /data/out/$J
 
 Check on a job at any point with `$T geopipe status $JOB`. Stop and delete everything with `make down`.
 
+To see what a job did, write PNG plots (the detections on the input, the tile grid, score/size/class distributions, and stage latency across the jobs you list):
+
+```bash
+$T geopipe viz $JOB --out /data/out/viz     # -> ./data/out/viz/<job>/*.png and latency.png
+```
+
 **Input:** a GeoTIFF with a CRS. Bands 1-3 are used as RGB, a single band is shown as grey, and 16-bit or float data is stretched to 8-bit once per image (2nd-98th percentile). Tiles that contain only nodata are skipped.
 
 **Output:** a GeoJSON FeatureCollection in EPSG:4326, one polygon per detection with `class_name`, `score` and `pixel_bbox` (the box in the source raster's pixels). The collection records the model and the source CRS.
@@ -68,7 +74,7 @@ Tags: `py3.12`, `py3.13`, and immutable `py<ver>-gdal<ver>-numpy<ver>` (for exam
 
 ## Status and roadmap
 
-Slices V1-V3 are done: the pipeline, RF-DETR, and large rasters. Next are visualisation, failure handling, a YOLOX and SpaceNet benchmark, then an HTTP API and web frontend. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
+Slices V1-V3b are done: the pipeline, RF-DETR, large rasters, and plots. Next are failure handling, a YOLOX and SpaceNet benchmark, then an HTTP API and web frontend. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
 
 ## Contributing
 

@@ -3,6 +3,7 @@
 import json
 import logging
 import socket
+import time
 
 from osgeo import osr
 
@@ -48,19 +49,24 @@ def handle(r, s3, d: Detection) -> None:
                                         "boxes": [b.model_dump() for b in d.boxes]}))
     if r.hlen(dets_key) < d.total:
         return
+    started = time.time()
     bus.set_status(r, d.job_id, "finalising")
     meta = json.loads(r.get(f"job:{d.job_id}:meta"))
     per_tile = {int(i): json.loads(v) for i, v in r.hgetall(dets_key).items()}
     out_key = f"tenants/{d.tenant_id}/results/{d.job_id}.geojson"
+    geojson = build_geojson(d.job_id, meta, per_tile)
     s3.put_object(Bucket=meta["bucket"], Key=out_key, ContentType="application/geo+json",
-                  Body=json.dumps(build_geojson(d.job_id, meta, per_tile)).encode())
+                  Body=json.dumps(geojson).encode())
     for start in range(0, d.total, 1000):  # DeleteObjects accepts at most 1000 keys
         s3.delete_objects(Bucket="scratch", Delete={"Objects": [
             {"Key": f"tenants/{d.tenant_id}/{d.job_id}/{i}.png"}
             for i in range(start, min(start + 1000, d.total))]})
     r.delete(dets_key)
     uri = f"s3://{meta['bucket']}/{out_key}"
-    bus.set_status(r, d.job_id, "done", output_uri=uri)
+    bus.set_status(
+        r, d.job_id, "done", output_uri=uri, finalise_seconds=round(time.time() - started, 3),
+        boxes_raw=sum(len(t["boxes"]) for t in per_tile.values()),
+        boxes_final=len(geojson["features"]), done_at=time.time())
     bus.publish(r, JOBS_DONE, Done(tenant_id=d.tenant_id, job_id=d.job_id, status="done",
                                    output_uri=uri))
 

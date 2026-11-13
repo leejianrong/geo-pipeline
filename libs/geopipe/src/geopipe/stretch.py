@@ -3,6 +3,11 @@
 import numpy as np
 
 
+def rgb_bands(band_count: int) -> tuple[int, int, int]:
+    """1-based bands shown as RGB: bands 1-3, or band 1 as grey when there are fewer than 3."""
+    return (1, 2, 3) if band_count >= 3 else (1, 1, 1)
+
+
 def compute_stretch(overview: np.ndarray, valid: np.ndarray) -> list[tuple[float, float]]:
     """Per-band 2nd-98th percentile over valid pixels of a (3, h, w) overview."""
     out = []
