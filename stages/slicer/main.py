@@ -24,10 +24,18 @@ def slice_job(r, s3, job: Job) -> None:
     # GDAL caches /vsis3/ listings and file state per process; a long-lived worker would
     # otherwise miss objects uploaded (or replaced) since its previous job.
     gdal.VSICurlClearCache()
-    raster = open_raster(f"/vsis3/{job.bucket}/{job.key}")
-    wins = plan(raster, job.options.tile_size, job.options.overlap)
-    if not wins:
-        raise ValueError("raster has no valid data")
+    bus.touch(r, job.job_id)
+    try:
+        raster = open_raster(f"/vsis3/{job.bucket}/{job.key}")
+        wins = plan(raster, job.options.tile_size, job.options.overlap)
+        if not wins:
+            raise ValueError("raster has no valid data")
+    except ValueError as e:  # raised by us: no CRS, no valid data
+        raise bus.PermanentError(str(e)) from e
+    except RuntimeError as e:  # GDAL: missing object or not a raster; others may be transient
+        if "does not exist" in str(e) or "not recognized as" in str(e):
+            raise bus.PermanentError(f"cannot read raster s3://{job.bucket}/{job.key}: {e}") from e
+        raise
     r.set(f"job:{job.job_id}:meta", json.dumps({
         "bucket": job.bucket, "key": job.key, "geotransform": raster.ds.GetGeoTransform(),
         "crs_wkt": raster.ds.GetProjection(), "model": job.options.model,
@@ -46,6 +54,7 @@ def slice_job(r, s3, job: Job) -> None:
         bus.publish(r, TILES, Tile(tenant_id=job.tenant_id, job_id=job.job_id, idx=idx,
                                    total=len(wins), window=win, tile_bucket=SCRATCH,
                                    tile_key=tile_key, options=job.options))
+        bus.touch(r, job.job_id)  # slicing counts as progress
     # Plain hset, not set_status: the job may already be "done" by now.
     r.hset(f"job:{job.job_id}:status", mapping={
         "slice_seconds": round(time.time() - started, 2),

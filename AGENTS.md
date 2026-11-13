@@ -2,7 +2,7 @@
 
 GeoTIFF in S3 → slicer → detector → postprocess → georeferenced GeoJSON, as three workers on Valkey Streams plus an S3-API object store (SeaweedFS), run with Docker Compose. It is meant to become a hosted service later, so contracts carry `tenant_id` and stay stateless.
 
-Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V3b merged; next V4 (failure behaviour). Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
+Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V4 merged; next V5 (YOLOX and the SpaceNet benchmark). Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
 
 ## Layout
 - `libs/geopipe/`: shared contracts and helpers; must install on 3.12 and 3.13. Only `raster.py` and `viz.py` need GDAL or matplotlib (`viz` extra); never import them from the detector or postprocess.
@@ -20,6 +20,7 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 - No AGPL anywhere (ADR-0009); check a dependency's licence before adding it.
 - Jobs are created only through `geopipe.jobs.submit_job`. Messages live in `geopipe/messages.py` and carry `tenant_id` and `schema_version`.
 - Stages talk only through Valkey and S3, never to each other. Pixels never go through Valkey.
+- Handlers raise `bus.PermanentError` when retrying cannot help (bad input); any other exception is retried 3 times, then dead-lettered to `jobs:dead` (ADR-0011). Keep handlers idempotent.
 - Test through the Valkey/S3 boundary. Update README, `docs/` and this file in the same PR as the change.
 
 ## Traps that already cost time

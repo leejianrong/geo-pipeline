@@ -37,7 +37,7 @@ $T geopipe wait $JOB          # prints the job status, exits non-zero on error o
 $T geopipe download s3://imagery/tenants/local/results/$JOB.geojson /data/out/$JOB.geojson
 ```
 
-Check on a job at any point with `$T geopipe status $JOB`. Stop and delete everything with `make down`.
+Check on a job at any point with `$T geopipe status $JOB`. A job ends as `done`, `incomplete` (no progress for `timeout_seconds`, default 300: the GeoJSON is partial and lists `missing_tiles`) or `error` (for example a corrupt raster); `wait` exits 0, 2 or 1 respectively. Stop and delete everything with `make down`.
 
 To see what a job did, write PNG plots (the detections on the input, the tile grid, score/size/class distributions, and stage latency across the jobs you list):
 
@@ -76,7 +76,7 @@ Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (ever
 
 ## Status and roadmap
 
-Slices V1-V3b are done: the pipeline, RF-DETR, large rasters, and plots. Next are failure handling, a YOLOX and SpaceNet benchmark, then an HTTP API and web frontend. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
+Slices V1-V4 are done: the pipeline, RF-DETR, large rasters, plots, and failure handling (retries, dead letters, stall timeouts). Next are a YOLOX and SpaceNet benchmark, then an HTTP API and web frontend. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
 
 ## Contributing
 

@@ -145,17 +145,19 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 ### Test plan
 
 #### End-to-end
-- Kill and restart the detector during a 50-tile job: GeoJSON identical to an uninterrupted run, no duplicates.
+- Kill and restart the detector during a 100-tile job: GeoJSON identical to an uninterrupted run, no duplicates. (Verified by hand; automated at the bus level because the test runner cannot control containers.)
 - Corrupt TIFF gives `status: "error"` in under 30 s and no GeoJSON.
 - Submitting the same job twice yields one output object and no duplicate features.
 
 #### Integration
-- Poison message reaches `jobs:dead` after the retry limit.
+- A tile that keeps failing reaches `jobs:dead` after the retry limit and fails its job; an unparseable message is dead-lettered at once.
 - Timeout path writes `incomplete: true` with the exact missing indices.
 
+- A crashed worker's message is reclaimed, and a slow handler is not duplicated by a second consumer.
+- Four concurrent finalisers produce exactly one output and one done event.
+
 #### Unit
-- Retry counter and backoff.
-- Finalise lock is exclusive between two postprocess instances.
+- Backoff doubles per delivery and is capped.
 
 ## V5: YOLOX backend and SpaceNet benchmark
 
