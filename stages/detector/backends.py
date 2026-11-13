@@ -35,5 +35,12 @@ def load_rfdetr() -> Backend:
     return lambda img, conf: to_boxes(model.predict(img, threshold=conf))
 
 
+def load_yolox_backend() -> Backend:
+    from yolox_onnx import load_yolox
+
+    return load_yolox()
+
+
 # Factories, so a backend is only loaded (and its dependencies imported) when enabled.
-BACKENDS: dict[str, Callable[[], Backend]] = {"stub": lambda: stub_detect, "rfdetr": load_rfdetr}
+BACKENDS: dict[str, Callable[[], Backend]] = {
+    "stub": lambda: stub_detect, "rfdetr": load_rfdetr, "yolox": load_yolox_backend}

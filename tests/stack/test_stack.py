@@ -4,6 +4,7 @@ import shutil
 import time
 import urllib.request
 
+import pytest
 from conftest import BUCKET, EPSG, GT, KEY, RECTS, SIZE, build_tif, run_job, upload_photo_tif
 from osgeo import gdal, osr
 
@@ -60,10 +61,11 @@ def test_round_trip_boxes_land_on_the_drawn_rectangles(stack):
             f.write(body)
 
 
-def test_rfdetr_finds_both_cats_in_a_real_photo(stack):
+@pytest.mark.parametrize("model", ["rfdetr", "yolox"])
+def test_each_model_finds_both_cats_in_a_real_photo(stack, model):
     r, s3, _ = stack
     key = upload_photo_tif(s3)
-    job_id = submit_job(r, s3, BUCKET, key, options=Options(model="rfdetr", overlap=0, conf=0.5))
+    job_id = submit_job(r, s3, BUCKET, key, options=Options(model=model, overlap=0, conf=0.5))
     deadline = time.time() + 180
     while r.hget(f"job:{job_id}:status", "state") != "done":
         assert time.time() < deadline, r.hgetall(f"job:{job_id}:status")
@@ -72,7 +74,7 @@ def test_rfdetr_finds_both_cats_in_a_real_photo(stack):
     uri = r.hget(f"job:{job_id}:status", "output_uri")
     bucket, out_key = uri.removeprefix("s3://").split("/", 1)
     fc = json.loads(s3.get_object(Bucket=bucket, Key=out_key)["Body"].read())
-    assert fc["model"] == "rfdetr"
+    assert fc["model"] == model
     cats = [f for f in fc["features"] if f["properties"]["class_name"] == "cat"]
     assert len(cats) >= 2 and all(f["properties"]["score"] >= 0.5 for f in cats)
     assert all(0 <= v <= 640 for f in fc["features"] for v in f["properties"]["pixel_bbox"])

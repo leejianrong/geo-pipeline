@@ -2,17 +2,17 @@
 
 GeoTIFF in S3 → slicer → detector → postprocess → georeferenced GeoJSON, as three workers on Valkey Streams plus an S3-API object store (SeaweedFS), run with Docker Compose. It is meant to become a hosted service later, so contracts carry `tenant_id` and stay stateless.
 
-Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V4 merged; next V5 (YOLOX and the SpaceNet benchmark). Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
+Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V5 merged (V5 = YOLOX plus a COCO benchmark); SpaceNet and a local fine-tune are V5b, later. Next: V6 (HTTP API). Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
 
 ## Layout
-- `libs/geopipe/`: shared contracts and helpers; must install on 3.12 and 3.13. Only `raster.py` and `viz.py` need GDAL or matplotlib (`viz` extra); never import them from the detector or postprocess.
+- `libs/geopipe/`: shared contracts and helpers; must install on 3.12 and 3.13. Only `raster.py`, `finalise.py`, `viz.py` and `bench.py` need GDAL, matplotlib or pycocotools (`viz` and `bench` extras); the detector must never import them.
 - `stages/{slicer,detector,postprocess}/`: one `Dockerfile` and `main.py` each. Slicer and postprocess use the GDAL image; the detector does not have GDAL.
 - `base/`: the `geo-gdal` image (GDAL built from source + Python + numpy 2). Versions live in `base/matrix.json`; `build.sh` and `publish.sh` are used by the Makefile and CI.
 - `tests/unit/` runs on the host; `tests/stack/` runs inside the `tools` container against the compose stack.
 
 ## Commands
 - `make check`: lint and unit tests, no Docker. This is the pre-push hook (`make hooks` installs it).
-- `make e2e`: stack plus stack tests (Docker; first build is slow because of torch). `make bench-large`: slow 2 GB benchmark, not in CI.
+- `make e2e`: stack plus stack tests on a fresh stack (Docker; first build is slow because of torch). `make bench-large`: slow 2 GB benchmark, not in CI. `make bench-coco`: RF-DETR vs YOLOX on 200 COCO images (downloads data).
 - `make base` (default GDAL, both Pythons), `make base-all` (every GDAL x Python, slow), `make licences`, `make down`. Bare `make` lists targets.
 
 ## Conventions
@@ -32,4 +32,7 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 - `docker compose run` does not rebuild images; use `--build` (`make e2e` does).
 - Host tests need `uv ... --with-editable ./libs/geopipe` (the Makefile does); a cached non-editable build hides new modules.
 - In shell loops, `docker compose exec` needs `-T </dev/null` or it eats the loop's stdin. Never `pkill -f` with a pattern that appears in your own command line.
+- Submitting identical options is idempotent, so a reused stack returns old results. Tests and benchmarks need a fresh stack (`make e2e` and `make bench-large` start one) or a fresh `tenant_id` (`geopipe bench` does).
+- The WSL2 clock can step backwards. Measure in-process durations with `time.monotonic()`; wall timestamps compared across containers can be off.
+- COCO images carry non-commercial Flickr licences: never commit or publish them or anything derived from them (ADR-0010). `data/` files written by containers are root-owned, so the host cannot write there.
 - Subagent `isolation: worktree` branches from the default branch, not the current one, and is deleted if unchanged. Create the worktree yourself when you need a specific commit.

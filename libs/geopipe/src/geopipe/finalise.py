@@ -59,7 +59,7 @@ def finalise(r, s3, job_id: str) -> bool:
     if not r.set(lock, "1", nx=True, ex=LOCK_TTL):
         return False
     try:
-        started = time.time()
+        started = time.monotonic()
         status = r.hgetall(status_key)
         tenant_id, total = status["tenant_id"], int(status["total"])
         bus.set_status(r, job_id, "finalising")
@@ -80,7 +80,7 @@ def finalise(r, s3, job_id: str) -> bool:
         uri = f"s3://{meta['bucket']}/{out_key}"
         state = "incomplete" if missing else "done"
         bus.set_status(
-            r, job_id, state, output_uri=uri, finalise_seconds=round(time.time() - started, 3),
+            r, job_id, state, output_uri=uri, finalise_seconds=round(time.monotonic() - started, 3),
             boxes_raw=sum(len(t["boxes"]) for t in per_tile.values()),
             boxes_final=len(geojson["features"]), done_at=time.time())
         r.zrem(DEADLINES, job_id)

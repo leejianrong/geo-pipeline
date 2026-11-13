@@ -9,6 +9,7 @@ from osgeo import gdal, osr
 from PIL import Image
 
 from geopipe import bus, store
+from geopipe.bench import write_geotiff
 
 gdal.UseExceptions()
 BUCKET, KEY = "imagery", "synth.tif"
@@ -64,17 +65,8 @@ def upload_photo_tif(s3, key: str = "cats.tif") -> str:
     jpg = f"{cache}/cats.jpg"
     if not os.path.exists(jpg):
         urllib.request.urlretrieve(PHOTO_URL, jpg)
-    arr = np.array(Image.open(jpg).convert("RGB"))
     tif = f"{cache}/cats.tif"
-    h, w, _ = arr.shape
-    ds = gdal.GetDriverByName("GTiff").Create(tif, w, h, 3, gdal.GDT_Byte)
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(EPSG)
-    ds.SetProjection(srs.ExportToWkt())
-    ds.SetGeoTransform((500000.0, 1.0, 0.0, 5000000.0, 0.0, -1.0))
-    for b in range(3):
-        ds.GetRasterBand(b + 1).WriteArray(arr[:, :, b])
-    ds = None  # close: the GeoTIFF is incomplete on disk until the dataset is released
+    write_geotiff(np.array(Image.open(jpg).convert("RGB")), tif)
     s3.upload_file(tif, BUCKET, key)
     return key
 

@@ -34,6 +34,15 @@ def main() -> None:
     v = sub.add_parser("viz", help="write PNG plots for finished jobs")
     v.add_argument("job_ids", nargs="+")
     v.add_argument("--out", default="viz", help="output directory (default: ./viz)")
+    b = sub.add_parser("bench", help="score the detectors on COCO images through the pipeline")
+    b.add_argument("--annotations", required=True, help="COCO instances_val2017.json")
+    b.add_argument("--images", default="coco-images", help="directory of COCO images")
+    b.add_argument("--models", default="rfdetr,yolox")
+    b.add_argument("--limit", type=int, default=200, help="number of images")
+    b.add_argument("--conf", type=float, default=0.05)
+    b.add_argument("--iou", type=float, default=0.65)
+    b.add_argument("--download", action="store_true", help="fetch missing images from COCO")
+    b.add_argument("--out", default="bench-out")
     w = sub.add_parser("wait", help="wait for a job: exit 0 done, 2 incomplete, 1 error")
     w.add_argument("job_id")
     w.add_argument("--timeout", type=int, default=120)
@@ -50,7 +59,18 @@ def main() -> None:
         return
 
     r = bus.connect()
-    if a.cmd == "viz":
+    if a.cmd == "bench":
+        import json
+        from pathlib import Path
+
+        from . import bench  # needs the `bench` extra and GDAL
+
+        with open(a.annotations) as f:
+            coco = json.load(f)
+        bench.run_benchmark(r, store.client(), coco, a.models.split(","), Path(a.images),
+                            Path(a.out), a.limit, a.conf, a.iou, a.download)
+        print(Path(a.out) / "report.md")
+    elif a.cmd == "viz":
         from . import viz  # needs the `viz` extra (matplotlib) and GDAL
 
         s3 = store.client()
