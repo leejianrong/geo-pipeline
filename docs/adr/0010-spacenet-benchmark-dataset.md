@@ -12,6 +12,8 @@ The owner asked for a generic dataset that ships as `.tif` and lets us assess ap
 
 Use SpaceNet buildings (start with a SpaceNet 2 AOI such as Vegas) as the benchmark. Convert footprint polygons to axis-aligned ground-truth boxes in map coordinates. Score by IoU matching in map space: precision, recall, F1, mAP@0.5, plus latency per megapixel. Data is downloaded to `data/` and never committed (CC BY-SA applies to the data and derivatives). V5 begins by inspecting one file with `gdalinfo` and confirming licence and path before any download.
 
+Access may be requester-pays on AWS for some SpaceNet archives (one source), which would need an AWS account; V5 step 1 confirms before committing.
+
 ## Alternatives considered
 
 | Option | Why not |

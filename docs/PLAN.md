@@ -58,7 +58,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 | R5 | Restarted or crashed stages neither lose nor duplicate jobs | Must-have |
 | R6 | Bad input or missing tiles produce an explicit error or `incomplete` result | Must-have |
 | R7 | Runs locally from one command, no cloud account | Must-have |
-| R8 | Every dependency and image is permissively licensed, enforced by a check | Must-have |
+| R8 | No AGPL component in the stack; Python packages checked in CI (see ADR-0009 for the OS-layer carve-out) | Must-have |
 | R9 | Architecture can add an HTTP API and frontend without changing worker contracts | Must-have (design only in MVP) |
 | R10 | Measured detection accuracy and georeferencing error on a public dataset | Nice-to-have |
 | R11 | GPU inference | Nice-to-have |
@@ -104,7 +104,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 | `jobs:done` | Output stream | Downstream consumers (later: API webhooks) |
 | `job:<id>:status` | Valkey hash | CLI `geopipe status`, later API/frontend |
 | `s3://<bucket>/tenants/<tid>/results/<stem>.geojson` | Output file | QGIS, scripts |
-| `s3://scratch/tenants/<tid>/<job_id>/<idx>.png` | Intermediate | Slicer writes, detector reads, lifecycle-expired |
+| `s3://scratch/tenants/<tid>/<job_id>/<idx>.png` | Intermediate | Slicer writes, detector reads, deleted by postprocess after finalise, plus a sweep for orphans |
 | `jobs:dead` | Stream | Messages that exhausted retries |
 | `geopipe bench` | CLI | Runs jobs over a dataset split and scores output |
 
@@ -119,7 +119,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 - **GeoJSON**: Polygon per box with `class_name`, `class_id`, `score`, `pixel_bbox`, `job_id`; collection-level `schema_version`, `source_crs`, `model`, `incomplete`, `missing_tiles`.
 - **Config and secrets**: environment variables only; credentials never logged; `.env` gitignored.
 - **Tooling**: Python, `uv`, `pytest`, `ruff`; one workspace with `libs/geopipe` and a package per stage.
-- **Licence gate**: CI runs a licence check over each image's installed packages and fails on AGPL/GPL (ADR-0009).
+- **Licence gate**: CI checks each image's installed Python packages and fails on AGPL or GPL; Debian userland and shared libraries are reviewed separately (ADR-0009).
 
 ## Testing approach
 
@@ -144,4 +144,5 @@ Test through the Valkey/S3 boundary, which is what other services and a future A
 - **ML wheels vs Python versions.** RF-DETR/torch and YOLOX are unverified on 3.13. Detector image defaults to 3.12; YOLOX runs through ONNX Runtime to avoid the `yolox` and torch dependency at inference. Earliest reveal: V2.
 - **SeaweedFS compatibility** with GDAL's S3 client (range reads, path-style addressing). Earliest reveal: V1.
 - **Dataset specifics.** SpaceNet GeoTIFF band layout, bit depth and footprint format must be inspected with `gdalinfo` before V5 (sources conflict on 8- vs 16-bit).
-- **Licence claims** below were not all verified; see ADR-0009.
+- **Licence claims** for Valkey, SeaweedFS and YOLOX come from search results or memory; see ADR-0009.
+- **SpaceNet access cost.** One source says downloads can be requester-pays on AWS, which needs an AWS account; check in V5 step 1.

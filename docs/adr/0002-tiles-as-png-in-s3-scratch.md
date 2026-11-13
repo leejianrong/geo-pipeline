@@ -10,7 +10,7 @@ Stage 1 slices; stage 2 detects. Tile pixels have to cross a process boundary. A
 
 ## Decision
 
-The slicer writes 8-bit RGB PNG tiles to `s3://<scratch>/<job_id>/<idx>.png` and publishes a small message with the URI and window. The scratch bucket has a lifecycle rule that expires objects. Tiles are never put in Redis.
+The slicer writes 8-bit RGB PNG tiles to `s3://<scratch>/<job_id>/<idx>.png` and publishes a small message with the URI and window. Postprocess deletes a job's tiles after finalising, and a periodic sweep removes orphans from failed jobs. (Bucket lifecycle rules are not relied on; SeaweedFS support is unchecked.) Tiles are never put in Redis.
 
 ## Alternatives considered
 
@@ -22,4 +22,4 @@ The slicer writes 8-bit RGB PNG tiles to `s3://<scratch>/<job_id>/<idx>.png` and
 
 ## Consequences
 
-Detector is GDAL-free and horizontally scalable; tiles are inspectable and replayable (a failed job can be re-detected without re-slicing). Costs an extra S3 write and read per tile and requires scratch cleanup. PNG is lossless, so there is no accuracy impact.
+Detector is GDAL-free and horizontally scalable; tiles are inspectable and replayable (a failed job can be re-detected without re-slicing). Costs an extra S3 write and read per tile and requires scratch cleanup, which we own. PNG is lossless, so there is no accuracy impact.
