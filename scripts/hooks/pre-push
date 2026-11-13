@@ -1,0 +1,3 @@
+#!/bin/sh
+# Cheap gate only (lint + no-Docker tests). Bypass for a scoped exception: git push --no-verify
+exec make check

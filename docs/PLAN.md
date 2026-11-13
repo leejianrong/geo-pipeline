@@ -103,7 +103,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 | `XADD jobs:in …` | Entry point for other services | Slicer group |
 | `jobs:done` | Output stream | Downstream consumers (later: API webhooks) |
 | `job:<id>:status` | Valkey hash | CLI `geopipe status`, later API/frontend |
-| `s3://<bucket>/tenants/<tid>/results/<stem>.geojson` | Output file | QGIS, scripts |
+| `s3://<bucket>/tenants/<tid>/results/<job_id>.geojson` | Output file | QGIS, scripts |
 | `s3://scratch/tenants/<tid>/<job_id>/<idx>.png` | Intermediate | Slicer writes, detector reads, deleted by postprocess after finalise, plus a sweep for orphans |
 | `jobs:dead` | Stream | Messages that exhausted retries |
 | `geopipe bench` | CLI | Runs jobs over a dataset split and scores output |
