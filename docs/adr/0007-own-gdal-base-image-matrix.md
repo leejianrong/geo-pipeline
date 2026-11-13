@@ -12,7 +12,7 @@ We then built `python:<ver>-slim-trixie` plus Debian's libgdal (3.10.3), compile
 
 ## Decision
 
-`base/Dockerfile` takes `ARG PY` (3.12 or 3.13) and builds `geo-gdal:py<ver>`: a builder stage compiles `GDAL==$(gdal-config --version)` into a wheel, the runtime stage installs `gdal-bin`, numpy `>=2,<3` and that wheel. `base/verify.py` is the image's default command and checks numpy ≥ 2, array round trip, `/vsis3/` support and the GTiff, COG and PNG drivers. CI builds and runs it for both versions.
+`base/Dockerfile` takes `ARG PY` (3.12 or 3.13) and builds `geo-gdal:py<ver>`: a builder stage compiles `GDAL==$(gdal-config --version)` into a wheel, the runtime stage installs `gdal-bin`, numpy `>=2,<3` and that wheel. `base/verify.py` is the image's default command and checks numpy ≥ 2, array round trip, `/vsis3/` support and the GTiff, COG and PNG drivers. CI builds and runs it for both versions. On every change to `base/` on `main`, a workflow publishes `ghcr.io/leejianrong/geo-gdal:py3.12` and `:py3.13` (plus immutable `py<ver>-gdal<ver>-numpy<ver>` tags), running `verify-gdal` before the push and again on the image pulled back from the registry.
 
 ## Alternatives considered
 

@@ -17,3 +17,11 @@ def windows(width: int, height: int, tile: int, overlap: float) -> list[Window]:
         for y in _starts(height, tile, stride)
         for x in _starts(width, tile, stride)
     ]
+
+
+def has_data(valid, win: Window, width: int, height: int) -> bool:
+    """Whether a window overlaps any valid pixel of a (low-resolution) validity mask."""
+    oh, ow = valid.shape
+    x0, x1 = int(win.x_off * ow / width), min(ow, -(-(win.x_off + win.w) * ow // width))
+    y0, y1 = int(win.y_off * oh / height), min(oh, -(-(win.y_off + win.h) * oh // height))
+    return bool(valid[y0:y1, x0:x1].any())

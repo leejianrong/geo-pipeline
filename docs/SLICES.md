@@ -76,7 +76,7 @@ Vertical increments, each ending in something demonstrable. MVP is V1–V5. V1 c
 
 **Build plan**
 
-1. Overlapping tiles by default; class-wise NMS across tiles in postprocess.
+1. Overlapping tiles by default; postprocess drops boxes cut by an interior tile edge (another tile sees the object whole), then applies class-wise NMS. Known limit: objects larger than the overlap zone can be split.
 2. Bounded-memory slicer: one window at a time; stretch stats from an overview.
 3. 8-bit stretch for uint16 and 1-band inputs; skip all-nodata tiles.
 4. 2–5 GB synthetic COG and non-COG variants; record read time and peak RSS for each.
@@ -98,6 +98,36 @@ Vertical increments, each ending in something demonstrable. MVP is V1–V5. V1 c
 #### Unit
 - NMS keeps the higher score on duplicates and keeps different classes.
 - Percentile stretch is deterministic for a given overview.
+
+## V3b: Visualisation and pipeline analytics
+
+**Delivers:** R10 (partly), supports R2/R3 review
+
+**Build plan**
+
+1. Stages record timings and counts in the job status hash: slice, detect and finalise seconds, tiles, raw vs post-NMS box counts.
+2. `geopipe viz <job_id>` downloads the raster overview and GeoJSON and writes, with matplotlib:
+   - an overlay of detections on the input (uint16 rasters use the stored stretch),
+   - a tile-grid view with detections per tile and skipped nodata tiles,
+   - histograms of score, box size and class counts,
+   - stage latency and tiles-per-second bars across jobs.
+3. `geopipe report <job_id>` embeds those plots and a summary table in one self-contained HTML file.
+4. A short doc on opening raster + GeoJSON in QGIS.
+
+**Demo:** run the cats and synthetic jobs, run `geopipe report`, open the HTML: boxes on the image, tile grid, distributions, per-stage latency.
+
+### Test plan
+
+#### End-to-end
+- `geopipe viz` on a finished job writes all PNGs and the HTML report, and the report opens offline.
+- A job with zero detections still produces a report.
+
+#### Integration
+- Status hash contains slice, detect and finalise seconds and box counts after a job.
+
+#### Unit
+- Overlay box-to-pixel mapping matches `pixel_bbox` for a downsampled image.
+- Histogram inputs are built correctly from a GeoJSON with and without features.
 
 ## V4: Failure behaviour
 
@@ -194,3 +224,22 @@ Vertical increments, each ending in something demonstrable. MVP is V1–V5. V1 c
 
 #### Unit
 - Batch assembly respects the configured size.
+
+## V8: Web frontend (post-MVP, after V6)
+
+**Delivers:** R9 (user-facing half)
+
+**Build plan:** choose the stack (ADR); upload form using presigned PUT; live job progress from the status endpoint; map view of detections over the raster with class and score filters; job history and GeoJSON download; sign-in mapped to a tenant.
+
+**Demo:** in a browser, sign in, upload a GeoTIFF, watch progress, see boxes on a map, download the GeoJSON.
+
+### Test plan
+
+#### End-to-end
+- Browser test: upload, wait for done, detections visible on the map, filter by score changes the visible count.
+
+#### Integration
+- Frontend talks only to the V6 API; no direct Valkey or S3 credentials in the browser.
+
+#### Unit
+- Score and class filters reduce the feature set as expected.

@@ -13,12 +13,17 @@ make e2e   # builds images, starts the stack, runs the round-trip test; output i
 
 ## GDAL + Python + numpy 2 base images
 
-`base/Dockerfile` builds GDAL (Debian trixie, 3.10) with Python 3.12 or 3.13 and numpy 2.x:
+Published on GHCR (public, amd64), rebuilt and verified whenever `base/` changes on `main`:
 
 ```bash
-docker build --build-arg PY=3.12 -t geo-gdal:py3.12 base/
-docker run --rm geo-gdal:py3.12   # python 3.12.x numpy 2.x gdal 3.10.x OK
+docker run --rm ghcr.io/leejianrong/geo-gdal:py3.12   # python 3.12.x numpy 2.x gdal 3.10.x OK
+docker run --rm ghcr.io/leejianrong/geo-gdal:py3.13
 ```
+
+Tags: `py3.12`, `py3.13`, and immutable `py<ver>-gdal<ver>-numpy<ver>` such as `py3.12-gdal3.10.3-numpy2.5.4`.
+The default command runs `verify-gdal`, which checks array round trips for six dtypes, `OpenArray` memory sharing, `/vsis3/` and the GTiff, COG and PNG drivers.
+
+To build locally instead: `docker build --build-arg PY=3.12 -t geo-gdal:py3.12 base/` (or `make base` for both).
 
 ## Licence
 

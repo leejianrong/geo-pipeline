@@ -9,6 +9,9 @@ x-env: &env
   AWS_S3_ENDPOINT: seaweedfs:8333
   AWS_HTTPS: "NO"
   AWS_VIRTUAL_HOSTING: "FALSE"
+  # GDAL block cache in MB. The default is 5% of host RAM, which would make slicer memory
+  # depend on the machine instead of the tile size.
+  GDAL_CACHEMAX: "256"
 
 services:
   valkey:

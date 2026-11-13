@@ -32,13 +32,15 @@ When actors conflict, the job message schema is the contract and wins over conve
 - Detector: RF-DETR (default) and YOLOX (via ONNX Runtime), CPU.
 - Postprocess: merge, cross-tile NMS, georeference, GeoJSON to S3.
 - Failure handling: redelivery, idempotency, partial results flagged `incomplete`.
+- Visualisation and analytics (V3b): overlays, tile grid, distributions, latency plots, HTML report.
 - Benchmark harness on the SpaceNet dataset (ADR-0010).
 - Licence gate: no AGPL (or other strong-copyleft) component in the stack (ADR-0009).
 
 **Post-MVP (designed for, not built)**
 - V6: HTTP API (submit, status, result, presigned upload) and tenant-aware keys.
 - V7: GPU variant.
-- Later: web frontend, auth, Postgres job store, autoscaling, Kubernetes.
+- V8: web frontend (after V6).
+- Later: Postgres job store, autoscaling, Kubernetes.
 
 **Out**
 - Productised training; one fine-tune recipe exists only to produce benchmark weights (V5).
@@ -115,7 +117,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 - **Detection message**: `job_id`, `idx`, `total`, `boxes` [{x1,y1,x2,y2,score,class_id,class_name}] in tile pixels.
 - **Tiling**: stride = tile_size × (1 − overlap); edge windows shifted inward; fully-nodata tiles skipped and not counted in `total`.
 - **Band handling**: bands 1–3 as RGB; 1 band replicated; ≥4 bands use the first three; uint16/float stretched to 8-bit using per-image 2–98 percentiles from an overview, shared by every tile.
-- **Postprocess**: add window offset → class-wise NMS → pixel corners to CRS via geotransform → reproject to EPSG:4326.
+- **Postprocess**: add window offset, drop boxes cut by an interior tile edge (when overlap > 0) → class-wise NMS → pixel corners to CRS via geotransform → reproject to EPSG:4326.
 - **GeoJSON**: Polygon per box with `class_name`, `class_id`, `score`, `pixel_bbox`, `job_id`; collection-level `schema_version`, `source_crs`, `model`, `incomplete`, `missing_tiles`.
 - **Config and secrets**: environment variables only; credentials never logged; `.env` gitignored.
 - **Tooling**: Python, `uv`, `pytest`, `ruff`; one workspace with `libs/geopipe` and a package per stage.
