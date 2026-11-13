@@ -25,10 +25,26 @@ def main() -> None:
     s.add_argument("--overlap", type=float, default=0.2)
     st = sub.add_parser("status", help="show a job's status")
     st.add_argument("job_id")
+    up = sub.add_parser("upload", help="upload a local file to s3://bucket/key")
+    up.add_argument("path")
+    up.add_argument("uri")
+    dl = sub.add_parser("download", help="download s3://bucket/key to a local file")
+    dl.add_argument("uri")
+    dl.add_argument("path")
     w = sub.add_parser("wait", help="block until a job is done or failed")
     w.add_argument("job_id")
     w.add_argument("--timeout", type=int, default=120)
     a = p.parse_args()
+
+    if a.cmd in ("upload", "download"):
+        s3 = store.client()
+        bucket, key = _split(a.uri)
+        if a.cmd == "upload":
+            store.ensure_bucket(s3, bucket)
+            s3.upload_file(a.path, bucket, key)
+        else:
+            s3.download_file(bucket, key, a.path)
+        return
 
     r = bus.connect()
     if a.cmd == "submit":

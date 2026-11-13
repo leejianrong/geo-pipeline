@@ -108,3 +108,13 @@ def test_job_with_more_than_1000_tiles_completes(stack, tmp_path):
     assert int(status["total"]) == 33 * 33 and len(fc["features"]) == 1
     leftover = s3.list_objects_v2(Bucket="scratch", Prefix=f"tenants/local/{fc['job_id']}/")
     assert leftover["KeyCount"] == 0
+
+
+def test_cli_upload_and_download_round_trip(stack, tmp_path):
+    import subprocess
+    src = tmp_path / "hello.bin"
+    src.write_bytes(b"geo-pipeline")
+    subprocess.run(["geopipe", "upload", str(src), f"s3://{BUCKET}/cli/hello.bin"], check=True)
+    out = tmp_path / "back.bin"
+    subprocess.run(["geopipe", "download", f"s3://{BUCKET}/cli/hello.bin", str(out)], check=True)
+    assert out.read_bytes() == b"geo-pipeline"
