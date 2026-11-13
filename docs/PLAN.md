@@ -26,7 +26,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 ## Scope
 
 **In MVP (V1–V5)**
-- Base image matrix: Python 3.12 and 3.13, GDAL, numpy 2.x, smoke-tested in CI.
+- Base image matrix: GDAL 3.11, 3.12 (default) and 3.13 built from source, on Python 3.12 and 3.13, with numpy 2.x; versions in `base/matrix.json`, smoke-tested in CI.
 - Trigger: Redis-protocol (Valkey) Streams message → job.
 - Slicer: windowed GeoTIFF read from S3, configurable tile size/overlap, 8-bit RGB PNG tiles.
 - Detector: RF-DETR (default) and YOLOX (via ONNX Runtime), CPU.
@@ -136,7 +136,7 @@ Test through the Valkey/S3 boundary, which is what other services and a future A
 | Q10 | Output CRS EPSG:4326 | A metric-CRS option is a small addition |
 | Q11 | CPU only in MVP | V7 adds GPU |
 | Q13 | Axis-aligned boxes suffice | Oriented datasets need conversion |
-| Q22 | Debian trixie as base OS (GDAL 3.10) | Ubuntu base would need deadsnakes or a source build for 3.13 |
+| Q22 | Debian trixie as base OS, GDAL compiled from source | Source builds take minutes per GDAL version and cover a chosen driver set, not all of GDAL's |
 | Q23 | Valkey Streams as queue, Valkey hash for MVP job status | Hosted service moves status to Postgres |
 | Q24 | SeaweedFS handles `/vsis3/` range reads and presigned URLs | Fallback to RustFS or another Apache-2.0 store (V1 tests it) |
 

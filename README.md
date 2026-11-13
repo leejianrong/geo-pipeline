@@ -63,14 +63,16 @@ Duplicates across overlapping tiles are removed by class-wise NMS. An object lar
 
 ## GDAL + Python + numpy 2 base images
 
-The workers build on `geo-gdal`, a GDAL image with Python 3.12 or 3.13 and numpy 2.x, which you can use on its own:
+The workers build on `geo-gdal`: GDAL 3.11, 3.12 or 3.13 with Python 3.12 or 3.13 and numpy 2.x, which you can use on its own. The official `ghcr.io/osgeo/gdal` Ubuntu images cannot do this (their 3.11/3.12 bindings break with numpy 2 and there is no Python 3.13), so we build GDAL from source. Details and test results: [ADR-0007](docs/adr/0007-own-gdal-base-image-matrix.md).
 
 ```bash
-docker run --rm ghcr.io/leejianrong/geo-gdal:py3.12   # python 3.12.x numpy 2.x gdal 3.10.x OK
-docker run --rm ghcr.io/leejianrong/geo-gdal:py3.13
+docker run --rm ghcr.io/leejianrong/geo-gdal:gdal3.12-py3.12   # python 3.12.x numpy 2.x gdal 3.12.x OK
+docker run --rm ghcr.io/leejianrong/geo-gdal:gdal3.13-py3.13
 ```
 
-Tags: `py3.12`, `py3.13`, and immutable `py<ver>-gdal<ver>-numpy<ver>` (for example `py3.12-gdal3.10.3-numpy2.5.4`). amd64 only. The default command checks array round trips for six dtypes, `OpenArray` memory sharing, `/vsis3/` and the GTiff, COG and PNG drivers. To build locally: `make base`.
+Tags (amd64): `gdal<minor>-py<python>` for each combination, `py3.12` and `py3.13` for the default GDAL (3.12), and immutable `py<python>-gdal<full>-numpy<numpy>` such as `py3.12-gdal3.12.4-numpy2.5.4`. The versions are listed in [`base/matrix.json`](base/matrix.json). The default command checks array round trips for six dtypes, `OpenArray` memory sharing, `/vsis3/` and the GTiff, COG and PNG drivers. Common drivers (including NetCDF, HDF5 and PostgreSQL) are enabled; HDF4, FITS, HEIF and a few others are not.
+
+Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (every combination, about 25 minutes).
 
 ## Status and roadmap
 

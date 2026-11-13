@@ -29,7 +29,7 @@ None.
 | Q19 | Versioning | ASSUMED | `schema_version` on messages and GeoJSON; no migrations yet | PLAN |
 | Q20 | Benchmark dataset | DECIDED (generic, `.tif`, scorable) | SpaceNet | ADR-0010 |
 | Q21 | Aerial weights | ASSUMED | One-off fine-tune on SpaceNet in V5 | SLICES V5 |
-| Q22 | Base OS | ASSUMED | Debian trixie (GDAL 3.10, tested on 3.12 and 3.13) | ADR-0007 |
+| Q22 | Base OS | ASSUMED | Debian trixie, GDAL 3.11-3.13 built from source (default 3.12), Python 3.12 and 3.13 | ADR-0007 |
 | Q23 | Job status store | ASSUMED | Valkey hash in MVP, Postgres when hosted | ADR-0008 |
 | Q24 | SeaweedFS and GDAL compatibility | ASSUMED | Works; V1 tests it | ADR-0009 |
 | Q25 | Hosted-service shape | DECIDED (direction) | Stateless workers, tenant-aware keys, single submit path, API/frontend later | ADR-0008 |

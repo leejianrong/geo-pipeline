@@ -15,20 +15,14 @@ jobs:
       - run: pip install uv
       - run: make check
 
-  base-image:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: ["3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker build --build-arg PY=${{ matrix.python }} -t geo-gdal:py${{ matrix.python }} base/
-      - run: docker run --rm geo-gdal:py${{ matrix.python }}
-
   e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Reuse the published base image (compiling GDAL on every PR is slow)
+        run: |
+          IMG=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/geo-gdal:py3.12
+          if docker pull -q "$IMG"; then docker tag "$IMG" geo-gdal:py3.12; else echo "not published, make up will build it"; fi
       - run: make e2e
       - run: make licences
       - if: failure()
