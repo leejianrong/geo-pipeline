@@ -211,7 +211,7 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - A polygon's converted box encloses it.
 
-## V6: HTTP API (post-MVP)
+## V6: HTTP API (done)
 
 **Delivers:** R9
 

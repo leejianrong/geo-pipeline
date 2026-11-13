@@ -28,4 +28,4 @@ The MVP is a local compose stack, but the owner wants a hosted service with a fr
 
 ## Consequences
 
-Small extra cost now (a field and a key prefix). Tenant isolation is a convention until V6 enforces it, so MVP data should be treated as single-tenant. Valkey status is volatile; durable history waits for Postgres.
+Small extra cost now (a field and a key prefix). V6 enforces tenant isolation in the API only (key prefix on uploads, tenant check on job lookups); the workers and the CLI trust the `tenant_id` they are given, so anything with Valkey or store credentials can cross tenants. Valkey status is volatile; durable history waits for Postgres.
