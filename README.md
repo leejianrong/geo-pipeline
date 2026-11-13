@@ -3,7 +3,13 @@
 Object detection on large GeoTIFFs: slice, detect (RF-DETR / YOLOX), merge, and write georeferenced GeoJSON.
 Runs locally with Docker Compose; designed to grow into a hosted service.
 
-**Status:** planning complete, implementation not started. See [`docs/PLAN.md`](docs/PLAN.md), [`docs/SLICES.md`](docs/SLICES.md) and [`docs/adr/`](docs/adr).
+**Status:** V1 (base images, stub-detector round trip) implemented; V2 onward planned. See [`docs/PLAN.md`](docs/PLAN.md), [`docs/SLICES.md`](docs/SLICES.md) and [`docs/adr/`](docs/adr).
+
+## Try it
+
+```bash
+make e2e   # builds images, starts the stack, runs the round-trip test; output in data/out/
+```
 
 ## GDAL + Python + numpy 2 base images
 

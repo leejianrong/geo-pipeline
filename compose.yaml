@@ -1,0 +1,37 @@
+# Dev-only credentials; nothing here is a secret.
+x-env: &env
+  VALKEY_URL: redis://valkey:6379/0
+  S3_ENDPOINT: http://seaweedfs:8333
+  AWS_ACCESS_KEY_ID: dev
+  AWS_SECRET_ACCESS_KEY: devdevdev
+  AWS_REGION: us-east-1
+  # GDAL /vsis3/ settings for a plain-HTTP, path-style store
+  AWS_S3_ENDPOINT: seaweedfs:8333
+  AWS_HTTPS: "NO"
+  AWS_VIRTUAL_HOSTING: "FALSE"
+
+services:
+  valkey:
+    image: valkey/valkey:8
+    healthcheck: {test: ["CMD", "valkey-cli", "ping"], interval: 2s, retries: 15}
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    command: server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data
+    volumes: ["./compose/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro"]
+  slicer:
+    build: {context: ., dockerfile: stages/slicer/Dockerfile}
+    environment: *env
+    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+  detector:
+    build: {context: ., dockerfile: stages/detector/Dockerfile}
+    environment: *env
+    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+  postprocess:
+    build: {context: ., dockerfile: stages/postprocess/Dockerfile}
+    environment: *env
+    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+  tools:  # test runner on the compose network: `make e2e`
+    profiles: [tools]
+    build: {context: ., dockerfile: tests/Dockerfile}
+    environment: *env
+    volumes: [".:/repo", "./data:/data"]

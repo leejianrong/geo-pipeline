@@ -1,0 +1,7 @@
+line-length = 100
+extend-exclude = ["**/build"]
+target-version = "py312"
+[lint]
+select = ["E", "F", "I", "B"]
+[lint.isort]
+known-first-party = ["geopipe"]
