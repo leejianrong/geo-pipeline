@@ -9,10 +9,10 @@ import time
 
 from osgeo import gdal
 from PIL import Image
-from raster import open_raster, plan, read_tile
 
 from geopipe import bus, store
 from geopipe.messages import JOBS_IN, TILES, Job, Tile
+from geopipe.raster import open_raster, plan, read_tile
 
 SCRATCH = "scratch"
 META_TTL = 7 * 24 * 3600
@@ -32,7 +32,8 @@ def slice_job(r, s3, job: Job) -> None:
         "bucket": job.bucket, "key": job.key, "geotransform": raster.ds.GetGeoTransform(),
         "crs_wkt": raster.ds.GetProjection(), "model": job.options.model,
         "width": raster.width, "height": raster.height, "overlap": job.options.overlap,
-        "iou": job.options.iou, "stretch": raster.stretch}), ex=META_TTL)
+        "iou": job.options.iou, "tile_size": job.options.tile_size,
+        "stretch": raster.stretch}), ex=META_TTL)
     store.ensure_bucket(s3, SCRATCH)
     # Before the first tile is published, or it would reset the detector's counter.
     bus.set_status(r, job.job_id, "detecting", total=len(wins), tiles_detected=0)

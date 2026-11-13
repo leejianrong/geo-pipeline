@@ -2,10 +2,10 @@
 
 GeoTIFF in S3 → slicer → detector → postprocess → georeferenced GeoJSON, as three workers on Valkey Streams plus an S3-API object store (SeaweedFS), run with Docker Compose. It is meant to become a hosted service later, so contracts carry `tenant_id` and stay stateless.
 
-Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V3 merged; next V3b (visualisation), then V4. Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
+Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V3b merged; next V4 (failure behaviour). Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
 
 ## Layout
-- `libs/geopipe/`: shared contracts and helpers. Pure Python that must install on 3.12 and 3.13.
+- `libs/geopipe/`: shared contracts and helpers; must install on 3.12 and 3.13. Only `raster.py` and `viz.py` need GDAL or matplotlib (`viz` extra); never import them from the detector or postprocess.
 - `stages/{slicer,detector,postprocess}/`: one `Dockerfile` and `main.py` each. Slicer and postprocess use the GDAL image; the detector does not have GDAL.
 - `base/`: the `geo-gdal` image (GDAL + Python 3.12/3.13 + numpy 2), published to GHCR by CI.
 - `tests/unit/` runs on the host; `tests/stack/` runs inside the `tools` container against the compose stack.

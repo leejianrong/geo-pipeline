@@ -31,6 +31,9 @@ def main() -> None:
     dl = sub.add_parser("download", help="download s3://bucket/key to a local file")
     dl.add_argument("uri")
     dl.add_argument("path")
+    v = sub.add_parser("viz", help="write PNG plots for finished jobs")
+    v.add_argument("job_ids", nargs="+")
+    v.add_argument("--out", default="viz", help="output directory (default: ./viz)")
     w = sub.add_parser("wait", help="block until a job is done or failed")
     w.add_argument("job_id")
     w.add_argument("--timeout", type=int, default=120)
@@ -47,7 +50,12 @@ def main() -> None:
         return
 
     r = bus.connect()
-    if a.cmd == "submit":
+    if a.cmd == "viz":
+        from . import viz  # needs the `viz` extra (matplotlib) and GDAL
+
+        s3 = store.client()
+        print(viz.write_plots([viz.load_job(r, s3, j) for j in a.job_ids], a.out))
+    elif a.cmd == "submit":
         bucket, key = _split(a.uri)
         opts = Options(model=a.model, tile_size=a.tile_size, overlap=a.overlap)
         print(submit_job(r, store.client(), bucket, key, a.tenant, opts))

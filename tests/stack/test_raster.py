@@ -1,17 +1,12 @@
 """Slicer raster helpers against local files (needs GDAL, not the stack)."""
 
-import sys
-from pathlib import Path
-
 import numpy as np
 from conftest import build_tif
 from osgeo import gdal
 
-sys.path.insert(0, str(Path(__file__).parents[2] / "stages" / "slicer"))
-from raster import open_raster, plan, read_tile  # noqa: E402
-
-from geopipe.messages import Window  # noqa: E402
-from geopipe.tiling import windows  # noqa: E402
+from geopipe.messages import Window
+from geopipe.raster import open_raster, plan, read_tile
+from geopipe.tiling import windows
 
 
 def gradient_tif(path, bands, width=1500, height=1000):

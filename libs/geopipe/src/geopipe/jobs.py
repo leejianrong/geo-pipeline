@@ -1,4 +1,5 @@
 import hashlib
+import time
 
 import redis
 
@@ -17,7 +18,7 @@ def submit_job(r: redis.Redis, s3, bucket: str, key: str, tenant_id: str = "loca
     options = options or Options()
     etag = s3.head_object(Bucket=bucket, Key=key)["ETag"]
     job_id = derive_job_id(tenant_id, bucket, key, etag, options)
-    set_status(r, job_id, "queued")
+    set_status(r, job_id, "queued", submitted_at=time.time())
     publish(r, JOBS_IN, Job(tenant_id=tenant_id, job_id=job_id, bucket=bucket, key=key,
                             options=options))
     return job_id

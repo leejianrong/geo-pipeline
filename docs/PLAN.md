@@ -32,7 +32,7 @@ When actors conflict, the job message schema is the contract and wins over conve
 - Detector: RF-DETR (default) and YOLOX (via ONNX Runtime), CPU.
 - Postprocess: merge, cross-tile NMS, georeference, GeoJSON to S3.
 - Failure handling: redelivery, idempotency, partial results flagged `incomplete`.
-- Visualisation and analytics (V3b): overlays, tile grid, distributions, latency plots, HTML report.
+- Visualisation and analytics (V3b): matplotlib PNGs for overlays, tile grid, distributions and stage latency.
 - Benchmark harness on the SpaceNet dataset (ADR-0010).
 - Licence gate: no AGPL (or other strong-copyleft) component in the stack (ADR-0009).
 
