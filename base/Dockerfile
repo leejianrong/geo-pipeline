@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir "numpy>=2,<3" setuptools wheel \
         "GDAL==$(gdal-config --version)"
 
 FROM python:${PY}-slim-${DEBIAN}
+LABEL org.opencontainers.image.source="https://github.com/leejianrong/geo-pipeline" \
+      org.opencontainers.image.description="GDAL + CPython + numpy 2.x" \
+      org.opencontainers.image.licenses="Apache-2.0"
 RUN apt-get update && apt-get install -y --no-install-recommends gdal-bin \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /wheels /wheels
