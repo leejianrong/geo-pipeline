@@ -7,13 +7,13 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 ## Layout
 - `libs/geopipe/`: shared contracts and helpers; must install on 3.12 and 3.13. Only `raster.py` and `viz.py` need GDAL or matplotlib (`viz` extra); never import them from the detector or postprocess.
 - `stages/{slicer,detector,postprocess}/`: one `Dockerfile` and `main.py` each. Slicer and postprocess use the GDAL image; the detector does not have GDAL.
-- `base/`: the `geo-gdal` image (GDAL + Python 3.12/3.13 + numpy 2), published to GHCR by CI.
+- `base/`: the `geo-gdal` image (GDAL built from source + Python + numpy 2). Versions live in `base/matrix.json`; `build.sh` and `publish.sh` are used by the Makefile and CI.
 - `tests/unit/` runs on the host; `tests/stack/` runs inside the `tools` container against the compose stack.
 
 ## Commands
 - `make check`: lint and unit tests, no Docker. This is the pre-push hook (`make hooks` installs it).
 - `make e2e`: stack plus stack tests (Docker; first build is slow because of torch). `make bench-large`: slow 2 GB benchmark, not in CI.
-- `make base`, `make licences`, `make down`. Bare `make` lists targets.
+- `make base` (default GDAL, both Pythons), `make base-all` (every GDAL x Python, slow), `make licences`, `make down`. Bare `make` lists targets.
 
 ## Conventions
 - One branch per slice or fix, PR to `main`, CI green before merge.
@@ -23,6 +23,7 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 - Test through the Valkey/S3 boundary. Update README, `docs/` and this file in the same PR as the change.
 
 ## Traps that already cost time
+- GDAL's Python bindings must match libgdal exactly. Do not base on the official `ghcr.io/osgeo/gdal` Ubuntu images: their 3.11/3.12 bindings are compiled against numpy 1.x and fail to import with numpy 2, and no official image has Python 3.13.
 - A GDAL dataset must be released (`ds = None`) before its file is uploaded or read; until then the GeoTIFF is incomplete on disk.
 - GDAL caches `/vsis3/` listings per process; the slicer clears the cache per job. Its block cache is capped by `GDAL_CACHEMAX` in `compose.yaml` (the default scales with host RAM).
 - S3 `DeleteObjects` takes at most 1000 keys per call.

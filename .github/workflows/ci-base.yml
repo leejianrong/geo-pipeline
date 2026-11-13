@@ -1,0 +1,33 @@
+name: ci-base
+# Builds and verifies every GDAL x Python image in base/matrix.json. Runs only when base/ changes.
+on:
+  pull_request:
+    paths: ["base/**", ".github/workflows/ci-base.yml"]
+concurrency:
+  group: ci-base-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      gdal: ${{ steps.m.outputs.gdal }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        run: echo "gdal=$(jq -c '.gdal | keys' base/matrix.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        gdal: ${{ fromJson(needs.matrix.outputs.gdal) }}
+    steps:
+      - uses: actions/checkout@v4
+      # One job per GDAL version: the two Python variants share the libgdal compile.
+      - run: |
+          for py in $(jq -r '.python[]' base/matrix.json); do
+            base/build.sh ${{ matrix.gdal }} "$py"
+          done

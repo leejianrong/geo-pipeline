@@ -20,7 +20,7 @@ Vertical increments, each ending in something demonstrable. MVP is V1–V5. V1 c
 
 **Demo:** `docker compose up`, `geopipe submit s3://imagery/synth.tif`, `geopipe status <id>` shows progress to `done`; open the GeoJSON over the raster in QGIS and the boxes sit on the drawn rectangles.
 
-**Rests on assumptions:** Q8, Q10, Q22 (Debian trixie), Q24 (SeaweedFS and GDAL). If Q24 fails, swap the object store; nothing else changes.
+**Rests on assumptions:** Q8, Q10, Q22 (Debian trixie base), Q24 (SeaweedFS and GDAL). If Q24 fails, swap the object store; nothing else changes.
 
 ### Test plan
 

@@ -1,4 +1,5 @@
 name: publish-base
+# Publishes every GDAL x Python image in base/matrix.json to GHCR when base/ changes on main.
 on:
   push:
     branches: [main]
@@ -9,11 +10,22 @@ permissions:
   packages: write
 
 jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      gdal: ${{ steps.m.outputs.gdal }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        run: echo "gdal=$(jq -c '.gdal | keys' base/matrix.json)" >> "$GITHUB_OUTPUT"
+
   publish:
+    needs: matrix
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python: ["3.12", "3.13"]
+        gdal: ${{ fromJson(needs.matrix.outputs.gdal) }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/login-action@v3
@@ -21,19 +33,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and verify before publishing
-        run: |
-          IMG=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/geo-gdal
-          docker build --build-arg PY=${{ matrix.python }} -t $IMG:py${{ matrix.python }} base/
-          out=$(docker run --rm $IMG:py${{ matrix.python }})
-          echo "$out"
-          gdal=$(echo "$out" | sed -n 's/.*gdal \([0-9.]*\).*/\1/p')
-          numpy=$(echo "$out" | sed -n 's/.*numpy \([0-9.]*\).*/\1/p')
-          docker tag $IMG:py${{ matrix.python }} $IMG:py${{ matrix.python }}-gdal$gdal-numpy$numpy
-          docker push --all-tags $IMG
-          echo "IMG=$IMG" >> "$GITHUB_ENV"
-      - name: Verify the published image at runtime
-        run: |
-          docker image rm -f $IMG:py${{ matrix.python }}
-          docker pull $IMG:py${{ matrix.python }}
-          docker run --rm $IMG:py${{ matrix.python }}
+      # build.sh verifies each image; publish.sh pushes, pulls it back and verifies again.
+      - run: |
+          REPO=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/geo-gdal
+          for py in $(jq -r '.python[]' base/matrix.json); do
+            base/build.sh ${{ matrix.gdal }} "$py"
+            base/publish.sh ${{ matrix.gdal }} "$py" "$REPO"
+          done

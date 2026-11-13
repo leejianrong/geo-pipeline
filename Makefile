@@ -1,4 +1,4 @@
-.PHONY: help base lint test check up down e2e bench-large licences hooks
+.PHONY: help base base-all lint test check up down e2e bench-large licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
 UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pytest --with ruff
@@ -6,10 +6,13 @@ UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
 
-base:  ## build and verify the GDAL base images (3.12, 3.13)
-	@for v in 3.12 3.13; do \
-	  docker build -q --build-arg PY=$$v -t geo-gdal:py$$v base/ >/dev/null && \
-	  docker run --rm geo-gdal:py$$v || exit 1; done
+base:  ## build and verify the default GDAL (base/matrix.json) for each Python
+	@for py in $$(jq -r '.python[]' base/matrix.json); do \
+	  base/build.sh $$(jq -r .default_gdal base/matrix.json) $$py || exit 1; done
+
+base-all:  ## every GDAL x Python combination in base/matrix.json (slow)
+	@for m in $$(jq -r '.gdal | keys[]' base/matrix.json); do \
+	  for py in $$(jq -r '.python[]' base/matrix.json); do base/build.sh $$m $$py || exit 1; done; done
 
 lint:  ## ruff
 	$(UV_RUN) ruff check .
@@ -20,7 +23,8 @@ test:  ## fast tests (no Docker)
 check: lint test  ## what the pre-push hook runs
 
 up:  ## start valkey, seaweedfs and the three stages
-	docker image inspect geo-gdal:py3.12 >/dev/null 2>&1 || $(MAKE) base
+	docker image inspect geo-gdal:py3.12 >/dev/null 2>&1 || \
+	  base/build.sh $$(jq -r .default_gdal base/matrix.json) 3.12
 	docker compose up -d --build
 
 down:  ## stop the stack and delete its data
