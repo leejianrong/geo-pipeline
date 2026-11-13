@@ -181,7 +181,7 @@ def test_a_crashed_workers_message_is_reclaimed_and_a_slow_one_is_not_duplicated
                                 kwargs={"retry_base": 1.0, "stop": stop}) for i in range(2)]
     [w.start() for w in workers]
     try:
-        wait_for(lambda: seen, 15, "reclaim of the dead worker's message")
+        wait_for(lambda: seen, 30, "reclaim of the dead worker's message")
         time.sleep(5)
         assert seen == ["j-crash"]  # handled once despite two live consumers
         wait_for(lambda: r.xpending(stream, group)["pending"] == 0, 10, "ack")

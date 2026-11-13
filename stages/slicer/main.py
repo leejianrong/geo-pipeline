@@ -19,7 +19,7 @@ META_TTL = 7 * 24 * 3600
 
 
 def slice_job(r, s3, job: Job) -> None:
-    started = time.time()
+    started = time.monotonic()  # durations use a clock that cannot step backwards
     bus.set_status(r, job.job_id, "slicing")
     # GDAL caches /vsis3/ listings and file state per process; a long-lived worker would
     # otherwise miss objects uploaded (or replaced) since its previous job.
@@ -57,7 +57,7 @@ def slice_job(r, s3, job: Job) -> None:
         bus.touch(r, job.job_id)  # slicing counts as progress
     # Plain hset, not set_status: the job may already be "done" by now.
     r.hset(f"job:{job.job_id}:status", mapping={
-        "slice_seconds": round(time.time() - started, 2),
+        "slice_seconds": round(time.monotonic() - started, 2),
         "slicer_peak_rss_mb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024})
 
 

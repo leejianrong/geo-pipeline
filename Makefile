@@ -1,7 +1,7 @@
-.PHONY: help base base-all lint test check up down e2e bench-large licences hooks
+.PHONY: help base base-all lint test check up down e2e bench-large bench-coco coco-data licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
-UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pytest --with ruff
+UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pycocotools --with pytest --with ruff
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -30,11 +30,22 @@ up:  ## start valkey, seaweedfs and the three stages
 down:  ## stop the stack and delete its data
 	docker compose down -v
 
-e2e: up  ## end-to-end tests against the stack; artefacts in data/out/
+e2e: down up  ## end-to-end tests on a fresh stack; artefacts in data/out/
 	docker compose run --rm --build tools pytest -q -m "not slow" tests/stack
 
-bench-large: up  ## 2 GB raster: slicer memory and COG vs non-COG timing (slow)
+bench-large: down up  ## 2 GB raster: slicer memory and COG vs non-COG timing (slow)
 	docker compose run --rm --build tools pytest -q -s -m slow tests/stack
+
+bench-coco: coco-data up  ## RF-DETR vs YOLOX on 200 COCO val images; report in data/out/bench/
+	docker compose run --rm --build tools geopipe bench --annotations /data/coco/instances_val2017.json \
+	  --images /data/coco/images --download --limit 200 --out /data/out/bench
+
+coco-data:  ## fetch COCO val2017 annotations (241 MB download) into data/coco/
+	@mkdir -p data/coco
+	@test -f data/coco/instances_val2017.json || { \
+	  curl -fL -o data/coco/annotations.zip http://images.cocodataset.org/annotations/annotations_trainval2017.zip && \
+	  python3 -c "import os, zipfile; z = zipfile.ZipFile('data/coco/annotations.zip'); z.extract('annotations/instances_val2017.json', 'data/coco'); os.replace('data/coco/annotations/instances_val2017.json', 'data/coco/instances_val2017.json'); os.rmdir('data/coco/annotations'); z.close(); os.remove('data/coco/annotations.zip')"; }
+	@ls -lh data/coco/instances_val2017.json
 
 licences:  ## fail on AGPL/GPL Python packages in every image
 	@for img in $$(docker compose config --images | grep -v -e valkey -e seaweedfs); do \

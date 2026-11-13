@@ -55,11 +55,15 @@ Per-job options, passed to `geopipe submit`:
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--model` | `stub` | `rfdetr` for RF-DETR Small, `stub` for a test backend that boxes bright pixels |
+| `--model` | `stub` | `rfdetr` (RF-DETR Small), `yolox` (YOLOX-s through ONNX Runtime), or `stub`, a test backend that boxes bright pixels |
 | `--tile-size` | 640 | Tile edge in pixels |
 | `--overlap` | 0.2 | Fraction of overlap between neighbouring tiles |
 
 Duplicates across overlapping tiles are removed by class-wise NMS. An object larger than the overlap zone can still be split. Boxes only (no oriented boxes or segmentation), CPU inference only.
+
+## Benchmark
+
+`make bench-coco` runs 200 COCO val2017 images through the real pipeline with both detectors and writes a report and plots to `data/out/bench/`: mAP@[.5:.95], mAP@.5, precision, recall, F1, and latency per image. It downloads COCO's annotations once (241 MB, `make coco-data`) and the 200 images (about 30 MB), and keeps them out of git because COCO's image licences include non-commercial terms. COCO shows everyday objects, so the scores do not predict performance on overhead imagery; a SpaceNet benchmark with fine-tuned weights is planned (see [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md)).
 
 ## GDAL + Python + numpy 2 base images
 
@@ -76,7 +80,7 @@ Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (ever
 
 ## Status and roadmap
 
-Slices V1-V4 are done: the pipeline, RF-DETR, large rasters, plots, and failure handling (retries, dead letters, stall timeouts). Next are a YOLOX and SpaceNet benchmark, then an HTTP API and web frontend. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
+Slices V1-V5 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts) and a COCO benchmark. Next are an HTTP API and web frontend, then a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
 
 ## Contributing
 
