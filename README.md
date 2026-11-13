@@ -49,6 +49,22 @@ $T geopipe viz $JOB --out /data/out/viz     # -> ./data/out/viz/<job>/*.png and 
 
 **Output:** a GeoJSON FeatureCollection in EPSG:4326, one polygon per detection with `class_name`, `score` and `pixel_bbox` (the box in the source raster's pixels). The collection records the model and the source CRS.
 
+### HTTP API
+
+`make up` also starts an API on `http://localhost:8000` (interactive docs at `/docs`). Every call needs an `X-API-Key` header; the dev keys in `compose.yaml` are `dev-key-a` (tenant `acme`) and `dev-key-b` (tenant `globex`). Tenants only see their own uploads, jobs and results.
+
+```bash
+H="X-API-Key: dev-key-a"
+UP=$(curl -s -X POST -H "$H" localhost:8000/uploads)                 # {"key", "upload_url"}
+curl -X PUT --data-binary @my.tif "$(echo $UP | jq -r .upload_url)"  # bytes go straight to the store
+JOB=$(curl -s -X POST -H "$H" -H 'content-type: application/json' localhost:8000/jobs \
+  -d "{\"key\": $(echo $UP | jq .key), \"options\": {\"model\": \"rfdetr\"}}" | jq -r .job_id)
+curl -s -H "$H" localhost:8000/jobs/$JOB                              # state and progress
+curl -s "$(curl -s -H "$H" localhost:8000/jobs/$JOB/result | jq -r .url)" > result.geojson
+```
+
+`options` takes the same fields as the CLI (below). The keys are placeholders: real authentication, per-tenant quotas and a durable job list come with the hosted service. Presigned URLs are signed for `S3_PUBLIC_ENDPOINT` (`http://localhost:8333` in compose), which must be the address clients reach the store on.
+
 ## Configuration
 
 Per-job options, passed to `geopipe submit`:
@@ -80,7 +96,7 @@ Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (ever
 
 ## Status and roadmap
 
-Slices V1-V5 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts) and a COCO benchmark. Next are an HTTP API and web frontend, then a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
+Slices V1-V6 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark and an HTTP API. Next are a GPU image, a SpaceNet benchmark with fine-tuned weights, and a web frontend; see a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
 
 ## Contributing
 

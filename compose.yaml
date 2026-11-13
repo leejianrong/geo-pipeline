@@ -22,6 +22,7 @@ services:
     healthcheck: {test: ["CMD", "valkey-cli", "ping"], interval: 2s, retries: 15}
   seaweedfs:
     image: chrislusf/seaweedfs:latest
+    ports: ["127.0.0.1:8333:8333"]  # presigned URLs from the API point here
     command: server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data
     volumes: ["./compose/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro"]
   slicer:
@@ -35,6 +36,15 @@ services:
   postprocess:
     build: {context: ., dockerfile: stages/postprocess/Dockerfile}
     environment: *env
+    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+  api:
+    build: {context: ., dockerfile: stages/api/Dockerfile}
+    environment:
+      <<: *env
+      # dev keys, `key:tenant`; presigned URLs are signed for the host-published store port
+      GEOPIPE_API_KEYS: "dev-key-a:acme,dev-key-b:globex"
+      S3_PUBLIC_ENDPOINT: http://localhost:8333
+    ports: ["127.0.0.1:8000:8000"]
     depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   tools:  # test runner on the compose network: `make e2e`
     profiles: [tools]

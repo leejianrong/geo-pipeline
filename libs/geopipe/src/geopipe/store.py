@@ -8,14 +8,14 @@ from botocore.client import Config
 from botocore.exceptions import ClientError, EndpointConnectionError
 
 
-def client():
+def client(endpoint: str | None = None):
     return boto3.client(
         "s3",
-        endpoint_url=os.environ.get("S3_ENDPOINT", "http://localhost:8333"),
+        endpoint_url=endpoint or os.environ.get("S3_ENDPOINT", "http://localhost:8333"),
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
         region_name=os.environ.get("AWS_REGION", "us-east-1"),
-        config=Config(s3={"addressing_style": "path"}),
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
 
 
