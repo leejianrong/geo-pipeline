@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 SCHEMA_VERSION = 1
 JOBS_IN, TILES, DETECTIONS, JOBS_DONE = "jobs:in", "tiles", "detections", "jobs:done"
+JOBS_DEAD = "jobs:dead"  # messages that exhausted their retries or could not be parsed
+DEADLINES = "jobs:deadlines"  # sorted set: job id -> time after which it counts as stalled
 
 
 class Window(BaseModel):
@@ -23,6 +25,7 @@ class Options(BaseModel):
     overlap: float = 0.2
     conf: float = 0.25
     iou: float = 0.5
+    timeout_seconds: int = 300  # a job with no progress for this long is finalised as incomplete
 
 
 class Box(BaseModel):
@@ -64,6 +67,6 @@ class Detection(_Msg):
 
 
 class Done(_Msg):
-    status: Literal["done", "error"]
+    status: Literal["done", "incomplete", "error"]
     output_uri: str | None = None
     error: str | None = None

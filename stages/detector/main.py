@@ -16,7 +16,8 @@ from geopipe.messages import DETECTIONS, TILES, Detection, Tile
 
 def detect_tile(r, s3, backends: dict[str, Backend], tile: Tile) -> None:
     if tile.options.model not in backends:
-        raise ValueError(f"model {tile.options.model!r} is not enabled; have {sorted(backends)}")
+        raise bus.PermanentError(
+            f"model {tile.options.model!r} is not enabled; have {sorted(backends)}")
     body = s3.get_object(Bucket=tile.tile_bucket, Key=tile.tile_key)["Body"].read()
     img = np.array(Image.open(io.BytesIO(body)).convert("RGB"))
     started = time.perf_counter()

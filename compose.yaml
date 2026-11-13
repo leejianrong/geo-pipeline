@@ -12,6 +12,9 @@ x-env: &env
   # GDAL block cache in MB. The default is 5% of host RAM, which would make slicer memory
   # depend on the machine instead of the tile size.
   GDAL_CACHEMAX: "256"
+  # Seconds before a failed or abandoned message is retried (doubles per attempt, 3 attempts).
+  # Production-like default is 15; local dev and tests use 2.
+  GEOPIPE_RETRY_BASE_S: "2"
 
 services:
   valkey:

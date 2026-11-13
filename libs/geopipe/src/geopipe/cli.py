@@ -34,7 +34,7 @@ def main() -> None:
     v = sub.add_parser("viz", help="write PNG plots for finished jobs")
     v.add_argument("job_ids", nargs="+")
     v.add_argument("--out", default="viz", help="output directory (default: ./viz)")
-    w = sub.add_parser("wait", help="block until a job is done or failed")
+    w = sub.add_parser("wait", help="wait for a job: exit 0 done, 2 incomplete, 1 error")
     w.add_argument("job_id")
     w.add_argument("--timeout", type=int, default=120)
     a = p.parse_args()
@@ -65,8 +65,8 @@ def main() -> None:
         deadline = time.time() + a.timeout
         while time.time() < deadline:
             status = r.hgetall(f"job:{a.job_id}:status")
-            if status.get("state") in ("done", "error"):
+            if status.get("state") in ("done", "incomplete", "error"):
                 print(status)
-                sys.exit(0 if status["state"] == "done" else 1)
+                sys.exit({"done": 0, "incomplete": 2}.get(status["state"], 1))
             time.sleep(1)
         sys.exit("timed out")
