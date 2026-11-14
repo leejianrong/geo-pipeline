@@ -32,7 +32,8 @@ def detect_tile(r, s3, backends: dict[str, Backend], tile: Tile) -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    names = os.environ.get("DETECTOR_MODELS", "stub,rfdetr,yolox,yolox-tiny,yolox-nano,rfdetr-nano").split(",")
+    default = "stub,rfdetr,yolox,yolox-tiny,yolox-nano,rfdetr-nano"
+    names = os.environ.get("DETECTOR_MODELS", default).split(",")
     unknown = [n for n in names if n not in BACKENDS]
     if unknown:
         raise SystemExit(f"unknown DETECTOR_MODELS {unknown}; available: {sorted(BACKENDS)}")
