@@ -1,4 +1,4 @@
-.PHONY: quantise help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences hooks
+.PHONY: up-slim e2e-slim export-rfdetr quantise help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
 UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pycocotools --with pytest --with ruff --with fastapi --with httpx
@@ -32,11 +32,19 @@ up-gpu:  ## like `up`, with the detector on the GPU (NVIDIA runtime required)
 	  base/build.sh $$(jq -r .default_gdal base/matrix.json) 3.12
 	docker compose -f compose.yaml -f compose.gpu.yaml up -d --build
 
+up-slim:  ## like `up`, with the torch-free ONNX detector (about a quarter of the image size)
+	docker image inspect geo-gdal:py3.12 >/dev/null 2>&1 || \
+	  base/build.sh $$(jq -r .default_gdal base/matrix.json) 3.12
+	docker compose -f compose.yaml -f compose.slim.yaml up -d --build
+
 down:  ## stop the stack and delete its data
 	docker compose down -v
 
 e2e: down up  ## end-to-end tests on a fresh stack; artefacts in data/out/
 	docker compose run --rm --build tools pytest -q -m "not slow" tests/stack
+
+e2e-slim: down up-slim  ## every model finds both cats on the torch-free detector
+	docker compose -f compose.yaml -f compose.slim.yaml run --rm --build tools pytest -q -k each_model tests/stack
 
 bench-large: down up  ## 2 GB raster: slicer memory and COG vs non-COG timing (slow)
 	docker compose run --rm --build tools pytest -q -s -m slow tests/stack
@@ -72,6 +80,12 @@ train-yolox:  ## fine-tune YOLOX (VARIANT=s|tiny, SIZE=640|416) on SpaceNet (GPU
 	  -d 1 -b 16 --fp16 -c /models/yolox_$(or $(VARIANT),s).pth && python export_yolox_onnx.py yolox_exp.py \
 	  /data/models/$(YOLOX_NAME)/best_ckpt.pth /data/models/$(YOLOX_NAME)/yolox_buildings.onnx'
 
+export-rfdetr:  ## export a fine-tuned RF-DETR for the slim image (RUN=rfdetr-spacenet VARIANT=Small|Nano)
+	docker build -q -t geo-train -f train/Dockerfile .
+	docker run --rm -v "$$PWD/data:/data" -v "$$PWD/scripts:/scripts:ro" --entrypoint python geo-train \
+	  /scripts/export_rfdetr_onnx.py --variant $(or $(VARIANT),Small) --out /data/models/$(RUN) \
+	  --weights /data/models/$(RUN)/checkpoint_best_total.pth
+
 quantise:  ## INT8-quantise a fine-tuned YOLOX (RUN=yolox-spacenet-tiny-416) -> data/models/$(RUN)/yolox_buildings_int8.onnx
 	docker build -q -t geo-train -f train/Dockerfile .
 	docker run --rm -v "$$PWD/data:/data" -v "$$PWD/scripts:/scripts:ro" -v "$$PWD/stages/detector:/app:ro" \
@@ -90,8 +104,9 @@ spacenet-data:  ## fetch 300 SpaceNet tiles (~730 MB, CC BY-SA 4.0) and write th
 	uv run --python $(PY) --with boto3 python scripts/fetch_spacenet.py
 	docker compose run --rm --build tools geopipe spacenet-prepare /data/spacenet/AOI_5_Khartoum /data/spacenet/coco
 
-licences:  ## fail on AGPL/GPL Python packages in every image
-	@for img in $$(docker compose config --images | grep -v -e valkey -e seaweedfs); do \
+licences:  ## fail on AGPL/GPL Python packages in every image (the slim detector too, if built)
+	@for img in $$(docker compose config --images | grep -v -e valkey -e seaweedfs) \
+	  $$(docker image ls -q geo-pipeline-detector-slim | head -1 | sed 's/.*/geo-pipeline-detector-slim/'); do \
 	  docker run --rm -v "$$PWD/scripts:/s:ro" --entrypoint python $$img /s/licence_check.py \
 	    || exit 1; done
 

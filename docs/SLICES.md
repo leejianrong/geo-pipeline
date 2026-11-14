@@ -345,13 +345,15 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - The script itself fails if the quantised model's output shape differs from the FP32 model's (checked on every run; no host test, since onnxruntime is not in the unit layer).
 
-## L5: Torch-free ONNX-only detector image
+## L5: Torch-free ONNX-only detector image (done)
 
 **Delivers:** a small CPU image
 
 **Build plan:** export RF-DETR to ONNX and add an ORT backend; second Dockerfile (or build arg) without torch; compose profile `slim`; CI builds both; licence check on the new image.
 
-**Demo:** `docker images` shows the slim detector at about 0.5 GB; a job on it finishes and matches the torch image's detections within tolerance.
+**Result:** 1.05 GB (4.03 GB for the default), 0.43 s model load against about 6 s, identical mAP and output. Numbers in `docs/benchmarks/lightweight-detector.md`.
+
+**Demo:** `docker images` shows the slim detector at about 0.5 GB (it is 1.05 GB); a job on it finishes and matches the torch image's detections within tolerance.
 
 ### Test plan
 

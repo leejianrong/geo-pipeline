@@ -8,7 +8,7 @@ the model's input size (640 for -s, 416 for nano and tiny) with grey padding, BG
 from functools import cache
 
 import numpy as np
-from backends import resolve_device, thread_count
+from backends import onnx_session
 from PIL import Image
 
 from geopipe.merge import nms
@@ -88,18 +88,7 @@ def yolox_boxes(raw: np.ndarray, ratio: float, shape: tuple[int, int], conf: flo
 
 
 def load_yolox(device: str, path: str, names: list[str] = COCO80):
-    import onnxruntime as ort  # only when this backend is enabled
-
-    if device == "cuda":
-        ort.preload_dlls()  # finds the CUDA libraries that the torch wheels ship
-    providers = ["CPUExecutionProvider"]
-    if resolve_device(device, "CUDAExecutionProvider" in ort.get_available_providers()) == "cuda":
-        providers.insert(0, "CUDAExecutionProvider")
-    opts = ort.SessionOptions()
-    opts.intra_op_num_threads = thread_count()
-    session = ort.InferenceSession(path, opts, providers=providers)
-    if device == "cuda" and session.get_providers()[0] != "CUDAExecutionProvider":
-        raise SystemExit("onnxruntime could not load its CUDA provider (missing CUDA libraries?)")
+    session = onnx_session(device, path)
     inp = session.get_inputs()[0]
     size = (inp.shape[2], inp.shape[3])  # static in every export we use
 

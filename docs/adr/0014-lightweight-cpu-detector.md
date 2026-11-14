@@ -35,6 +35,10 @@ Kept: `yolox-tiny-buildings` (416 px input; mAP@.5 0.564, 3.1x faster than YOLOX
 
 INT8 (ORT static QDQ, per-channel, 30 SpaceNet training tiles for calibration) passes the 2-point check: YOLOX-s 0.586 to 0.573 mAP@.5, detect time 0.29 to 0.12 s/img at 4 threads (0.95 to 0.33 at 1); YOLOX-tiny 0.564 to 0.559, 0.09 to 0.06 (0.26 to 0.11). Both are registered as `*-int8` backends. End to end through the pipeline: YOLOX-s 10.8 to 19.4 tiles/s, YOLOX-tiny 21.6 to 27.9.
 
+## Measured after L5 (2026-11-14)
+
+Torch-free image: 1.05 GB against 4.03 GB (the plan guessed 0.5 GB), model load 0.43 s against about 6 s, same mAP@.5 on SpaceNet (0.659 and 0.596), same speed within noise, identical output on the cat photo. `DETECTOR_RUNTIME=onnx` (set in the slim image) makes `rfdetr*` backends use ONNX Runtime; the model names do not change. The RF-DETR ONNX backend resizes with a plain bilinear filter because PIL's antialiasing cost 0.9 mAP points. CI builds the slim image and runs the cat tests and the licence check on it.
+
 ## Excluded
 
 | Candidate | Why |
