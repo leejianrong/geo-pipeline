@@ -6,7 +6,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "stages" / "detector"))
 import pytest  # noqa: E402
-from backends import resolve_device, stub_detect, to_boxes  # noqa: E402
+from backends import resolve_device, stub_detect, thread_count, to_boxes  # noqa: E402
 
 
 def test_to_boxes_normalises_rfdetr_detections():
@@ -42,3 +42,13 @@ def test_cuda_without_a_gpu_is_an_explicit_error():
         resolve_device("cuda", cuda_available=False)
     with pytest.raises(SystemExit, match="cpu or cuda"):
         resolve_device("gpu", cuda_available=True)
+
+
+def test_thread_count_defaults_to_4_and_rejects_bad_values(monkeypatch):
+    monkeypatch.delenv("DETECTOR_THREADS", raising=False)
+    assert thread_count() == 4
+    monkeypatch.setenv("DETECTOR_THREADS", "2")
+    assert thread_count() == 2
+    for bad in ("0", "-1", "many", ""):
+        with pytest.raises(SystemExit, match="DETECTOR_THREADS"):
+            thread_count(bad)

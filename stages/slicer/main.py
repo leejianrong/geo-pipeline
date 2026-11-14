@@ -6,7 +6,10 @@ import logging
 import resource
 import socket
 import time
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 
+import numpy as np
 from osgeo import gdal
 from PIL import Image
 
@@ -17,6 +20,7 @@ from geopipe.stretch import apply_stretch
 
 SCRATCH = "scratch"
 META_TTL = 7 * 24 * 3600
+ENCODE_THREADS = 4
 
 
 def write_preview(s3, raster, bucket: str, key: str) -> None:
@@ -60,15 +64,27 @@ def slice_job(r, s3, job: Job) -> None:
                    width=raster.width, height=raster.height,
                    preview_uri=f"s3://{job.bucket}/{preview_key}")
 
-    for idx, win in enumerate(wins):
+    def emit(idx: int, tile: np.ndarray) -> None:
         buf = io.BytesIO()
-        Image.fromarray(read_tile(raster, win)).save(buf, "PNG")
+        # Level 0: the default level cost 56 of ~72 ms per tile and capped the pipeline (ADR-0014).
+        Image.fromarray(tile).save(buf, "PNG", compress_level=0)
         tile_key = f"tenants/{job.tenant_id}/{job.job_id}/{idx}.png"
         s3.put_object(Bucket=SCRATCH, Key=tile_key, Body=buf.getvalue())
         bus.publish(r, TILES, Tile(tenant_id=job.tenant_id, job_id=job.job_id, idx=idx,
-                                   total=len(wins), window=win, tile_bucket=SCRATCH,
+                                   total=len(wins), window=wins[idx], tile_bucket=SCRATCH,
                                    tile_key=tile_key, options=job.options))
         bus.touch(r, job.job_id)  # slicing counts as progress
+
+    # GDAL reads stay on this thread; encode and upload overlap on a few. `pending` bounds
+    # the tiles held in memory and surfaces any worker error.
+    with ThreadPoolExecutor(ENCODE_THREADS) as pool:
+        pending: deque = deque()
+        for idx, win in enumerate(wins):
+            pending.append(pool.submit(emit, idx, read_tile(raster, win)))
+            if len(pending) >= 2 * ENCODE_THREADS:
+                pending.popleft().result()
+        for f in pending:
+            f.result()
     # Plain hset, not set_status: the job may already be "done" by now.
     r.hset(f"job:{job.job_id}:status", mapping={
         "slice_seconds": round(time.monotonic() - started, 2),

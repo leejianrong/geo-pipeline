@@ -20,6 +20,14 @@ def resolve_device(requested: str, cuda_available: bool) -> str:
     return requested
 
 
+def thread_count(raw: str | None = None) -> int:
+    """CPU threads per detector, from DETECTOR_THREADS (default 4: more was not faster)."""
+    raw = os.environ.get("DETECTOR_THREADS", "4") if raw is None else raw
+    if not raw.isdigit() or int(raw) < 1:
+        raise SystemExit(f"DETECTOR_THREADS must be a positive integer, got {raw!r}")
+    return int(raw)
+
+
 def stub_detect(img: np.ndarray, conf: float) -> list[Box]:
     """Test backend: one box around all bright pixels (assumes at most one object per tile)."""
     ys, xs = np.where(img.max(axis=2) > 128)
@@ -43,6 +51,7 @@ def load_rfdetr(device: str, weights: str | None = None) -> Backend:
     import torch
     from rfdetr import RFDETRSmall  # heavy import, only when this backend is enabled
 
+    torch.set_num_threads(thread_count())
     model = RFDETRSmall(device=resolve_device(device, torch.cuda.is_available()),
                         **({"pretrain_weights": weights} if weights else {}))
     return lambda img, conf: to_boxes(model.predict(img, threshold=conf))

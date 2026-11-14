@@ -18,6 +18,10 @@ On CPU, YOLOX-s takes about 65 ms per tile and RF-DETR Small about 180 ms (forwa
 - **Quantisation** is ORT static QDQ INT8, per-channel, calibrated on tiles from the target data. Dynamic quantisation does not speed up convolutions.
 - **Input size** is decided from data: nano and tiny are tried at 416 and at 640.
 
+## Measured after L1 (2026-11-14)
+
+Stub model, real imagery, 48 tiles: 13.5 tiles/s before; 22.6 with PNG level 0 (slicer 43 ms/tile; encode 17, upload 12); 33.5 after encode and upload moved onto 4 threads (slicer 18 ms/tile); 48 with two detector replicas. GDAL reads stay on the slicer's main thread.
+
 ## Excluded
 
 | Candidate | Why |
