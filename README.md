@@ -81,6 +81,8 @@ Per-job options, passed to `geopipe submit`:
 
 On a machine with an NVIDIA GPU and the NVIDIA container runtime, `make up-gpu` runs the detector on it (`DETECTOR_DEVICE=cuda`; it refuses to start without a visible GPU). It is about 2.5x faster for RF-DETR on our test raster, and `make bench-device` measures CPU against GPU on your machine. The GPU image is much larger because of the CUDA libraries. See [ADR-0012](docs/adr/0012-gpu-detector.md).
 
+Studio: the web UI has an Explore tab where you browse a registered dataset (images by split, ground-truth boxes, box statistics, licence and attribution). Run `make spacenet-data` and, with the stack up, `make register-builtin` to add SpaceNet Khartoum; datasets are listed per tenant plus the shared built-ins ([ADR-0015](docs/adr/0015-studio-in-the-frontend.md), [ADR-0016](docs/adr/0016-trainer-stage-and-registry.md)). Browser uploads of large files go straight to the store (CORS, measured up to 4.9 GB).
+
 Publishing: `make publish-model REPO=<user>/yolox-tiny-buildings` stages the fine-tuned YOLOX-tiny models (FP32 and INT8) with a model card for Hugging Face under CC BY-SA 4.0 (add `UPLOAD=1` and `HF_TOKEN` to upload). Only models that pass the ADR-0014 bar are accepted.
 
 Torch-free image: `make up-slim` runs the detector without torch (ONNX Runtime only; 1.05 GB instead of 4 GB, models load in 0.4 s instead of 6 s) with the same model names, the same detections and the same speed. Fine-tuned RF-DETR weights need `make export-rfdetr RUN=rfdetr-spacenet VARIANT=Small` first. See [ADR-0014](docs/adr/0014-lightweight-cpu-detector.md).

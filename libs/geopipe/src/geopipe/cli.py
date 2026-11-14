@@ -49,6 +49,9 @@ def main() -> None:
                         help="write COCO training data and test.json from SpaceNet tiles")
     sp.add_argument("root", help="a directory made by scripts/fetch_spacenet.py")
     sp.add_argument("out")
+    rb = sub.add_parser("register-builtin", help="register the SpaceNet dataset for the studio")
+    rb.add_argument("coco", help="the output directory of spacenet-prepare")
+    rb.add_argument("--bucket", default="imagery")
     w = sub.add_parser("wait", help="wait for a job: exit 0 done, 2 incomplete, 1 error")
     w.add_argument("job_id")
     w.add_argument("--timeout", type=int, default=120)
@@ -73,6 +76,17 @@ def main() -> None:
         return
 
     r = bus.connect()
+    if a.cmd == "register-builtin":
+        from pathlib import Path
+
+        from . import registry
+
+        s3 = store.client()
+        store.ensure_bucket(s3, a.bucket)
+        print(registry.register_dataset(
+            s3, r, a.bucket, Path(a.coco), "spacenet-khartoum", name="SpaceNet Khartoum buildings",
+            licence="CC BY-SA 4.0", attribution=registry.SPACENET_ATTRIBUTION))
+        return
     if a.cmd == "bench":
         import json
         from pathlib import Path

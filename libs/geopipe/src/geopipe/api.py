@@ -14,8 +14,10 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from . import store
+from .api_studio import add_dataset_routes
 from .jobs import submit_job
 from .messages import Options
+from .registry import SHARED
 
 
 class JobRequest(BaseModel):
@@ -28,6 +30,8 @@ def parse_keys(spec: str) -> dict[str, str]:
     pairs = [p.split(":", 1) for p in spec.split(",") if p.strip()]
     if any(len(p) != 2 or not all(p) for p in pairs):
         raise ValueError("GEOPIPE_API_KEYS must look like key1:tenant1,key2:tenant2")
+    if any(t.strip() == SHARED for _, t in pairs):
+        raise ValueError(f"{SHARED!r} is the built-in namespace, not a tenant name")
     return {k.strip(): t.strip() for k, t in pairs}
 
 
@@ -46,6 +50,8 @@ def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str])
         if not status or status.get("tenant_id") != tid:
             raise HTTPException(404, "unknown job")  # same answer for another tenant's job
         return status
+
+    add_dataset_routes(app, r, s3, public_s3, bucket, tenant)
 
     @app.get("/health")
     def health() -> dict:
