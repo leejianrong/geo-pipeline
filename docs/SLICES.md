@@ -268,13 +268,13 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - Score and class filters reduce the feature set as expected.
 
-## L1: Pipeline overhead (lightweight detector series, ADR-0014)
+## L1: Pipeline overhead (done; lightweight detector series, ADR-0014)
 
 **Delivers:** the precondition for any model speedup to be visible end to end
 
 **Build plan:** slicer writes PNG tiles with `compress_level=0` (amend ADR-0002); `DETECTOR_THREADS` env (default 4) applied to ONNX Runtime and torch; detector replicas via `docker compose up --scale detector=N` documented and tested (consumer group splits tiles); `geopipe bench` reports slicer ms/tile.
 
-**Demo:** the stub-model pipeline on the real-imagery mosaic goes from 13.5 tiles/s to at least 30 tiles/s, with the same GeoJSON.
+**Demo:** the stub-model pipeline on the real-imagery mosaic goes from 13.5 tiles/s to at least 30 tiles/s, with the same GeoJSON. Measured: 33.5 tiles/s with one detector (slicer 18 ms/tile), 48 with two. Level 0 alone gave 22.6; overlapping encode and upload on 4 threads gave the rest. Replica splitting was checked by hand (two consumers, no pending messages); the stack tests cannot scale compose services.
 
 ### Test plan
 

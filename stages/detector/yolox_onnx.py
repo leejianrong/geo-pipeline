@@ -8,7 +8,7 @@ class-wise NMS.
 import os
 
 import numpy as np
-from backends import resolve_device
+from backends import resolve_device, thread_count
 from PIL import Image
 
 from geopipe.merge import nms
@@ -90,8 +90,10 @@ def load_yolox(device: str = "cpu", path: str | None = None, names: list[str] = 
     providers = ["CPUExecutionProvider"]
     if resolve_device(device, "CUDAExecutionProvider" in ort.get_available_providers()) == "cuda":
         providers.insert(0, "CUDAExecutionProvider")
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = thread_count()
     session = ort.InferenceSession(path or os.environ.get("YOLOX_ONNX", "/models/yolox_s.onnx"),
-                                   providers=providers)
+                                   opts, providers=providers)
     if device == "cuda" and session.get_providers()[0] != "CUDAExecutionProvider":
         raise SystemExit("onnxruntime could not load its CUDA provider (missing CUDA libraries?)")
     name = session.get_inputs()[0].name
