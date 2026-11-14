@@ -390,11 +390,13 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 
 Requirements RS1 to RS8 are in `PLAN.md`. Order: the riskiest unknown first (S0), then read-only Explore, then upload, training, user models. Real training runs need the GPU and are not in CI; CI uses a fake trainer behind a seam.
 
-## S0: Spike: direct browser upload to the store
+## S0: Spike: direct browser upload to the store (done)
 
 **Delivers:** the decision for RS3: CORS plus presigned PUT, or streaming through the frontend
 
 **Build plan:** configure CORS on the SeaweedFS S3 endpoint (or find out it cannot); a throwaway page that PUTs a 300 MB file to a presigned URL from a real browser; measure the browser and frontend memory; record the result and the chosen path in ADR-0015.
+
+**Result:** works up to 4.9 GB, memory growth 0; see ADR-0015. A bucket CORS rule is required (SeaweedFS reflects any origin without one).
 
 **Demo:** a 300 MB file is in the store, uploaded from a browser, with the frontend process's memory growth under 100 MB; or a written reason and the working fallback.
 

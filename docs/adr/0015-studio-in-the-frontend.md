@@ -17,6 +17,21 @@ The owner wants a studio: one place to explore a dataset and the model trained o
 - **Attribution is part of the view:** a dataset's licence and attribution text is shown wherever its images are shown (the built-in SpaceNet dataset is CC BY-SA 4.0).
 - **Local-only for now.** Everything is tenant-scoped, but public exposure, rate limits and abuse protection for uploads and GPU time are a separate hosting milestone.
 
+## Result of slice S0 (2026-11-15): CORS plus presigned PUT works
+
+Measured with `scripts/browser_upload_check.py` (Chromium, a file chosen through a file input, PUT to a presigned URL from a page on the frontend's origin; size and MD5 checked against the object):
+
+| file | time | rate | frontend container memory |
+|---|---|---|---|
+| 300 MB | 3.2 s | 95 MB/s | 39 to 39 MiB |
+| 2,000 MB | 22.9 s | 87 MB/s | 39 to 39 MiB |
+| 4,900 MB | 59.0 s | 83 MB/s | 39 to 39 MiB |
+
+- A single PUT works up to the 5 GB dataset limit; no multipart upload is needed for it.
+- **SeaweedFS answers a CORS preflight for any origin when the bucket has no CORS rule** (it echoes the origin). A bucket rule restricts it: other origins get 403. The API now sets a rule on the upload bucket from `GEOPIPE_BROWSER_ORIGINS` (default `http://localhost:8080,http://127.0.0.1:8080`) and a stack test checks both the allowed and the refused origin. Production must set this variable to the real frontend origin.
+- The streaming fallback is not needed.
+- A test page that built the body from in-memory Blob parts failed above about 1 GB; a real file does not. Do not test uploads with Blobs.
+
 ## Alternatives considered
 
 | Option | Why not |

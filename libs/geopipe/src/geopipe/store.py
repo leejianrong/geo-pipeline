@@ -37,6 +37,17 @@ def ensure_bucket(s3, name: str, retries: int = 30) -> None:
     raise RuntimeError(f"object store not reachable, cannot ensure bucket {name!r}")
 
 
+def allow_browser_uploads(s3, bucket: str, origins: list[str]) -> None:
+    """Let pages served from `origins` PUT to presigned URLs for this bucket.
+
+    SeaweedFS answers a CORS preflight for any origin when a bucket has no rule, so the rule is
+    what restricts it: other origins get a 403 (ADR-0015, measured in slice S0).
+    """
+    s3.put_bucket_cors(Bucket=bucket, CORSConfiguration={"CORSRules": [{
+        "AllowedOrigins": origins, "AllowedMethods": ["PUT", "GET"], "AllowedHeaders": ["*"],
+        "ExposeHeaders": ["ETag"], "MaxAgeSeconds": 600}]})
+
+
 def presign_get(s3, bucket: str, key: str, expires: int = 3600) -> str:
     return s3.generate_presigned_url("get_object", Params={"Bucket": bucket, "Key": key},
                                      ExpiresIn=expires)
