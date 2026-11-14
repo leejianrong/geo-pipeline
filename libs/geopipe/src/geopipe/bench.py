@@ -244,10 +244,28 @@ def write_report(results: dict[str, dict], n_images: int, conf: float, out: Path
     return out / "report.md"
 
 
+def save_run(r, s3, model: str, dataset_id: str, split: str, scored: dict, dets: list[dict],
+             conf: float, iou: float) -> str:
+    """Store one scored model run in the registry (S2); returns the run id."""
+    import time
+
+    from . import registry
+
+    run = registry.RunManifest(
+        id=f"run-{uuid.uuid4().hex[:12]}", model_id=model, dataset_id=dataset_id, split=split,
+        scorer="pipeline", conf=conf, iou=iou, created_at=time.time(),
+        metrics={k: float(scored[k]) for k in registry.METRIC_KEYS})
+    registry.write_run(s3, r, BUCKET, run, scored, dets)
+    return run.id
+
+
 def run_benchmark(r, s3, coco: dict, models: list[str], images_dir: Path, out: Path, limit: int,
                   conf: float = 0.05, iou: float = 0.65, download: bool = False,
-                  **report) -> dict:
-    """Upload the images once, run every model over them, score and write the report."""
+                  register: tuple[str, str] | None = None, **report) -> dict:
+    """Upload the images once, run every model over them, score and write the report.
+
+    `register=(dataset_id, split)` also stores each model's run, with its predictions, in the
+    registry so the studio can show it."""
     import tempfile
 
     from PIL import Image
@@ -274,5 +292,8 @@ def run_benchmark(r, s3, coco: dict, models: list[str], images_dir: Path, out: P
     for model in models:
         runs = run_model(r, s3, keys, model, tenant, conf, iou)
         results[model] = score_model(coco, name_to_id, runs, list(keys))
+        if register:
+            dets = [d for i in keys for d in to_coco_detections(i, runs[i]["features"], name_to_id)]
+            save_run(r, s3, model, *register, results[model], dets, conf, iou)
     write_report(results, len(infos), conf, out, **report)
     return results

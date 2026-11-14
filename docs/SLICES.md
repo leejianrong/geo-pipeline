@@ -442,6 +442,8 @@ Requirements RS1 to RS8 are in `PLAN.md`. Order: the riskiest unknown first (S0)
 
 **Build plan:** `geopipe bench` writes `results.json` and `predictions.json` per run (S-A3; the in-process scorer arrives in S6); `register-builtin` also registers the fine-tuned models of ADR-0014 with their metrics; API for models and runs; the Explore model view: model select, `Stat` cards (mAP, F1, speed), PR curve, and a results view with ground truth against predictions on each image, a score slider, per-image true and false positives and misses, and a worst-images list. Say whether a number came from the pipeline or the in-process scorer (ADR-0017).
 
+**Progress:** the data side is done. `geopipe bench --dataset-id ... --split ...` stores a run per model (`predictions.json` in COCO results format, `results.json` with the 101-point PR curve, manifest) and `make bench-spacenet` now registers the dataset and the six built-in models first and stores their runs. A saved run rescored against the registered dataset's own annotations reproduces its metrics exactly (largest difference 0 over six runs). Model manifests carry static facts (decoder, input size, classes, trained-on, backend); metrics come from the runs. Still to do: the API routes for models and runs and the model view.
+
 **Demo:** pick yolox-tiny-buildings, see mAP@.5 0.564 and open its worst test tile with predicted and true boxes overlaid.
 
 ### Test plan

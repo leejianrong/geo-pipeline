@@ -45,6 +45,8 @@ def main() -> None:
     b.add_argument("--out", default="bench-out")
     b.add_argument("--title", help="report title (default: the COCO one)")
     b.add_argument("--caveat", help="report caveat (default: the COCO one)")
+    b.add_argument("--dataset-id", help="also store each model's run for this registered dataset")
+    b.add_argument("--split", default="test", help="split of that dataset (default: test)")
     sp = sub.add_parser("spacenet-prepare",
                         help="write COCO training data and test.json from SpaceNet tiles")
     sp.add_argument("root", help="a directory made by scripts/fetch_spacenet.py")
@@ -83,6 +85,7 @@ def main() -> None:
 
         s3 = store.client()
         store.ensure_bucket(s3, a.bucket)
+        registry.register_builtin_models(s3, r, a.bucket, "spacenet-khartoum")
         print(registry.register_dataset(
             s3, r, a.bucket, Path(a.coco), "spacenet-khartoum", name="SpaceNet Khartoum buildings",
             licence="CC BY-SA 4.0", attribution=registry.SPACENET_ATTRIBUTION))
@@ -96,8 +99,9 @@ def main() -> None:
         with open(a.annotations) as f:
             coco = json.load(f)
         report = {k: v for k, v in (("title", a.title), ("caveat", a.caveat)) if v}
+        register = (a.dataset_id, a.split) if a.dataset_id else None
         bench.run_benchmark(r, store.client(), coco, a.models.split(","), Path(a.images),
-                            Path(a.out), a.limit, a.conf, a.iou, a.download, **report)
+                            Path(a.out), a.limit, a.conf, a.iou, a.download, register, **report)
         print(Path(a.out) / "report.md")
     elif a.cmd == "viz":
         from . import viz  # needs the `viz` extra (matplotlib) and GDAL
