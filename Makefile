@@ -1,4 +1,4 @@
-.PHONY: help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data licences hooks
+.PHONY: help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
 UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pycocotools --with pytest --with ruff --with fastapi --with httpx
@@ -56,6 +56,10 @@ coco-data:  ## fetch COCO val2017 annotations (241 MB download) into data/coco/
 	  curl -fL -o data/coco/annotations.zip http://images.cocodataset.org/annotations/annotations_trainval2017.zip && \
 	  python3 -c "import os, zipfile; z = zipfile.ZipFile('data/coco/annotations.zip'); z.extract('annotations/instances_val2017.json', 'data/coco'); os.replace('data/coco/annotations/instances_val2017.json', 'data/coco/instances_val2017.json'); os.rmdir('data/coco/annotations'); z.close(); os.remove('data/coco/annotations.zip')"; }
 	@ls -lh data/coco/instances_val2017.json
+
+spacenet-data:  ## fetch 300 SpaceNet tiles (~730 MB, CC BY-SA 4.0) and write the COCO files
+	uv run --python $(PY) --with boto3 python scripts/fetch_spacenet.py
+	docker compose run --rm --build tools geopipe spacenet-prepare /data/spacenet/AOI_5_Khartoum /data/spacenet/coco
 
 licences:  ## fail on AGPL/GPL Python packages in every image
 	@for img in $$(docker compose config --images | grep -v -e valkey -e seaweedfs); do \
