@@ -5,7 +5,8 @@ from types import SimpleNamespace
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "stages" / "detector"))
-from backends import stub_detect, to_boxes  # noqa: E402
+import pytest  # noqa: E402
+from backends import resolve_device, stub_detect, to_boxes  # noqa: E402
 
 
 def test_to_boxes_normalises_rfdetr_detections():
@@ -32,3 +33,12 @@ def test_stub_boxes_bright_pixels_only():
     [b] = stub_detect(img, 0.25)
     assert (b.x1, b.y1, b.x2, b.y2) == (20, 10, 60, 30)
     assert stub_detect(np.zeros((8, 8, 3), dtype=np.uint8), 0.25) == []
+
+
+def test_cuda_without_a_gpu_is_an_explicit_error():
+    assert resolve_device("cuda", cuda_available=True) == "cuda"
+    assert resolve_device("cpu", cuda_available=False) == "cpu"
+    with pytest.raises(SystemExit, match="no GPU is visible"):
+        resolve_device("cuda", cuda_available=False)
+    with pytest.raises(SystemExit, match="cpu or cuda"):
+        resolve_device("gpu", cuda_available=True)

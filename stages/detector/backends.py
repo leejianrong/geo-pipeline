@@ -9,6 +9,16 @@ from geopipe.messages import Box
 Backend = Callable[[np.ndarray, float], list[Box]]
 
 
+def resolve_device(requested: str, cuda_available: bool) -> str:
+    """`cpu` or `cuda`; asking for cuda without a GPU is an error, never a silent CPU run."""
+    if requested not in ("cpu", "cuda"):
+        raise SystemExit(f"DETECTOR_DEVICE must be cpu or cuda, got {requested!r}")
+    if requested == "cuda" and not cuda_available:
+        raise SystemExit("DETECTOR_DEVICE=cuda but no GPU is visible to this container "
+                         "(use the GPU image and compose.gpu.yaml, with the NVIDIA runtime)")
+    return requested
+
+
 def stub_detect(img: np.ndarray, conf: float) -> list[Box]:
     """Test backend: one box around all bright pixels (assumes at most one object per tile)."""
     ys, xs = np.where(img.max(axis=2) > 128)
@@ -28,19 +38,21 @@ def to_boxes(det) -> list[Box]:
             in zip(det.xyxy, det.confidence, det.class_id, det.data["class_name"], strict=True)]
 
 
-def load_rfdetr() -> Backend:
+def load_rfdetr(device: str) -> Backend:
+    import torch
     from rfdetr import RFDETRSmall  # heavy import, only when this backend is enabled
 
-    model = RFDETRSmall()
+    model = RFDETRSmall(device=resolve_device(device, torch.cuda.is_available()))
     return lambda img, conf: to_boxes(model.predict(img, threshold=conf))
 
 
-def load_yolox_backend() -> Backend:
+def load_yolox_backend(device: str) -> Backend:
     from yolox_onnx import load_yolox
 
-    return load_yolox()
+    return load_yolox(device)
 
 
-# Factories, so a backend is only loaded (and its dependencies imported) when enabled.
-BACKENDS: dict[str, Callable[[], Backend]] = {
-    "stub": lambda: stub_detect, "rfdetr": load_rfdetr, "yolox": load_yolox_backend}
+# Factories taking the device, so a backend is only loaded (and its dependencies imported)
+# when enabled.
+BACKENDS: dict[str, Callable[[str], Backend]] = {
+    "stub": lambda device: stub_detect, "rfdetr": load_rfdetr, "yolox": load_yolox_backend}

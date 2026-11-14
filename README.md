@@ -75,7 +75,9 @@ Per-job options, passed to `geopipe submit`:
 | `--tile-size` | 640 | Tile edge in pixels |
 | `--overlap` | 0.2 | Fraction of overlap between neighbouring tiles |
 
-Duplicates across overlapping tiles are removed by class-wise NMS. An object larger than the overlap zone can still be split. Boxes only (no oriented boxes or segmentation), CPU inference only.
+On a machine with an NVIDIA GPU and the NVIDIA container runtime, `make up-gpu` runs the detector on it (`DETECTOR_DEVICE=cuda`; it refuses to start without a visible GPU). It is about 2.5x faster for RF-DETR on our test raster, and `make bench-device` measures CPU against GPU on your machine. The GPU image is much larger because of the CUDA libraries. See [ADR-0012](docs/adr/0012-gpu-detector.md).
+
+Duplicates across overlapping tiles are removed by class-wise NMS. An object larger than the overlap zone can still be split. Boxes only (no oriented boxes or segmentation).
 
 ## Benchmark
 
@@ -96,7 +98,7 @@ Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (ever
 
 ## Status and roadmap
 
-Slices V1-V6 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark and an HTTP API. Next are a GPU image, a SpaceNet benchmark with fine-tuned weights, and a web frontend; see a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
+Slices V1-V7 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark, an HTTP API and a GPU detector. Next are a SpaceNet benchmark with fine-tuned weights, and a web frontend; see a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
 
 ## Contributing
 
