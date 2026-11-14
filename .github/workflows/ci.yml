@@ -24,6 +24,7 @@ jobs:
           IMG=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/geo-gdal:py3.12
           if docker pull -q "$IMG"; then docker tag "$IMG" geo-gdal:py3.12; else echo "not published, make up will build it"; fi
       - run: make e2e
+      - run: make e2e-slim
       - run: make licences
       - if: failure()
         run: docker compose logs --no-color

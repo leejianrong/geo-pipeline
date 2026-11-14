@@ -1,0 +1,5 @@
+# Torch-free CPU detector: `make up-slim` (docker compose -f compose.yaml -f compose.slim.yaml).
+services:
+  detector:
+    image: geo-pipeline-detector-slim
+    build: {dockerfile: stages/detector/Dockerfile.slim}

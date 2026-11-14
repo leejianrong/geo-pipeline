@@ -1,7 +1,7 @@
 # Training extras on top of the GPU detector image, so the inference image stays lean.
 ARG BASE=geo-pipeline-detector-gpu
 FROM ${BASE}
-RUN pip install --no-cache-dir "rfdetr[train]"
+RUN pip install --no-cache-dir "rfdetr[train,onnx]"
 # Triton kernels and YOLOX's COCO-eval extension are compiled on first use.
 RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ libc6-dev \
     && rm -rf /var/lib/apt/lists/*
