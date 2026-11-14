@@ -50,6 +50,14 @@ services:
       S3_PUBLIC_ENDPOINT: http://localhost:8333
     ports: ["127.0.0.1:8000:8000"]
     depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+  frontend:
+    build: {context: ., dockerfile: stages/frontend/Dockerfile}
+    environment:
+      API_URL: http://api:8000
+      S3_REWRITE: localhost:8333=seaweedfs:8333  # the API signs URLs for the host-published port
+      UI_MODELS: ${DETECTOR_MODELS:-stub,rfdetr,yolox}
+    ports: ["127.0.0.1:8080:8000"]
+    depends_on: [api]
   tools:  # test runner on the compose network: `make e2e`
     profiles: [tools]
     build: {context: ., dockerfile: tests/Dockerfile}

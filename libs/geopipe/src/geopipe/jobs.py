@@ -26,6 +26,7 @@ def submit_job(r: redis.Redis, s3, bucket: str, key: str, tenant_id: str = "loca
         r.hset(status_key, "state", "queued")  # retry of a failed job
     set_status(r, job_id, "queued", submitted_at=time.time(), tenant_id=tenant_id,
                timeout_seconds=options.timeout_seconds)
+    r.zadd(f"tenant:{tenant_id}:jobs", {job_id: time.time()})  # the job list the API serves
     publish(r, JOBS_IN, Job(tenant_id=tenant_id, job_id=job_id, bucket=bucket, key=key,
                             options=options))
     return job_id

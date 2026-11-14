@@ -249,7 +249,7 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - Batch assembly respects the configured size.
 
-## V8: Web frontend (post-MVP, after V6)
+## V8: Web frontend (done, on indah)
 
 **Delivers:** R9 (user-facing half)
 

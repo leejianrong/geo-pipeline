@@ -70,6 +70,12 @@ def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str])
                 raise HTTPException(404, "upload not found: PUT the file first") from e
             raise
 
+    @app.get("/jobs")
+    def list_jobs(limit: int = 50, tid: str = Depends(tenant)) -> list[dict]:
+        """The tenant's newest jobs (statuses expire after a few days, so older ones drop out)."""
+        ids = r.zrevrange(f"tenant:{tid}:jobs", 0, max(1, min(limit, 200)) - 1)
+        return [{"job_id": i, **s} for i in ids if (s := r.hgetall(f"job:{i}:status"))]
+
     @app.get("/jobs/{job_id}")
     def get_job(job_id: str, tid: str = Depends(tenant)) -> dict:
         return own_status(job_id, tid)
@@ -79,9 +85,15 @@ def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str])
         status = own_status(job_id, tid)
         if status["state"] not in ("done", "incomplete"):
             raise HTTPException(409, f"job is {status['state']}, no result yet")
-        out_bucket, out_key = status["output_uri"].removeprefix("s3://").split("/", 1)
-        return {"state": status["state"],
-                "url": store.presign_get(public_s3, out_bucket, out_key)}
+
+        def url(uri: str) -> str:
+            bucket_, key_ = uri.removeprefix("s3://").split("/", 1)
+            return store.presign_get(public_s3, bucket_, key_)
+
+        return {"state": status["state"], "url": url(status["output_uri"]),
+                "preview_url": url(status["preview_uri"]) if "preview_uri" in status else None,
+                "width": int(status["width"]) if "width" in status else None,
+                "height": int(status["height"]) if "height" in status else None}
 
     return app
 
