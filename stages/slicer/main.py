@@ -13,9 +13,19 @@ from PIL import Image
 from geopipe import bus, store
 from geopipe.messages import JOBS_IN, TILES, Job, Tile
 from geopipe.raster import open_raster, plan, read_tile
+from geopipe.stretch import apply_stretch
 
 SCRATCH = "scratch"
 META_TTL = 7 * 24 * 3600
+
+
+def write_preview(s3, raster, bucket: str, key: str) -> None:
+    """Low-res JPEG of the whole raster (from the overview already read), for the UI."""
+    img = raster.overview.transpose(1, 2, 0)
+    buf = io.BytesIO()
+    Image.fromarray(img if raster.stretch is None else apply_stretch(img, raster.stretch)).save(
+        buf, "JPEG", quality=85)
+    s3.put_object(Bucket=bucket, Key=key, Body=buf.getvalue(), ContentType="image/jpeg")
 
 
 def slice_job(r, s3, job: Job) -> None:
@@ -43,8 +53,12 @@ def slice_job(r, s3, job: Job) -> None:
         "iou": job.options.iou, "tile_size": job.options.tile_size,
         "stretch": raster.stretch}), ex=META_TTL)
     store.ensure_bucket(s3, SCRATCH)
+    preview_key = f"tenants/{job.tenant_id}/results/{job.job_id}.preview.jpg"
+    write_preview(s3, raster, job.bucket, preview_key)
     # Before the first tile is published, or it would reset the detector's counter.
-    bus.set_status(r, job.job_id, "detecting", total=len(wins), tiles_detected=0)
+    bus.set_status(r, job.job_id, "detecting", total=len(wins), tiles_detected=0,
+                   width=raster.width, height=raster.height,
+                   preview_uri=f"s3://{job.bucket}/{preview_key}")
 
     for idx, win in enumerate(wins):
         buf = io.BytesIO()

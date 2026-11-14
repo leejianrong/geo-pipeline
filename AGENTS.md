@@ -2,11 +2,12 @@
 
 GeoTIFF in S3 → slicer → detector → postprocess → georeferenced GeoJSON, as three workers on Valkey Streams plus an S3-API object store (SeaweedFS), run with Docker Compose. It is meant to become a hosted service later, so contracts carry `tenant_id` and stay stateless.
 
-Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V7 and V5b merged (V5 = YOLOX plus a COCO benchmark, V6 = HTTP API, V7 = GPU detector, V5b = SpaceNet fine-tunes of both models). Next: V8 (web frontend). Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
+Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V8 and V5b merged (V5 = YOLOX plus a COCO benchmark, V6 = HTTP API, V7 = GPU detector, V5b = SpaceNet fine-tunes, V8 = web UI on indah). Next: unplanned; open cards are Postgres job records, identity-provider sign-in. Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
 
 ## Layout
 - `libs/geopipe/`: shared contracts and helpers; must install on 3.12 and 3.13. Only `raster.py`, `finalise.py`, `viz.py` and `bench.py` need GDAL, matplotlib or pycocotools (`viz` and `bench` extras); the detector must never import them.
 - `geopipe/api.py` is the FastAPI app (`api` extra), run by `stages/api/`; it only calls `submit_job` and reads status, and never touches pixels.
+- `stages/frontend/app.py` is the web UI (indah, a client of the API only; `geopipe.viewer` holds its filter logic). The slicer writes a JPEG preview next to each result.
 - `stages/{slicer,detector,postprocess}/`: one `Dockerfile` and `main.py` each. Slicer and postprocess use the GDAL image; the detector does not have GDAL.
 - `base/`: the `geo-gdal` image (GDAL built from source + Python + numpy 2). Versions live in `base/matrix.json`; `build.sh` and `publish.sh` are used by the Makefile and CI.
 - `tests/unit/` runs on the host; `tests/stack/` runs inside the `tools` container against the compose stack.

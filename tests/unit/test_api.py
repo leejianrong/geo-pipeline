@@ -12,6 +12,9 @@ class FakeRedis:
     def hgetall(self, key):
         return self.jobs.get(key, {})
 
+    def zrevrange(self, key, start, stop):
+        return self.jobs.get(key, [])[start:stop + 1]
+
     def ping(self):
         return True
 
@@ -77,3 +80,23 @@ def test_other_tenants_job_looks_unknown():
 def test_no_result_until_finished():
     c = client({"job:j2:status": {"state": "running", "tenant_id": "acme"}})
     assert c.get("/jobs/j2/result", headers=A).status_code == 409
+
+
+def test_job_list_is_per_tenant_newest_first_and_skips_expired_statuses():
+    jobs = {"tenant:acme:jobs": ["new", "gone", "old"], "tenant:globex:jobs": ["other"],
+            "job:new:status": {"state": "done", "tenant_id": "acme"},
+            "job:old:status": {"state": "error", "tenant_id": "acme"},
+            "job:other:status": {"state": "done", "tenant_id": "globex"}}
+    c = client(jobs)
+    assert [j["job_id"] for j in c.get("/jobs", headers=A).json()] == ["new", "old"]
+    assert [j["job_id"] for j in c.get("/jobs", headers=B).json()] == ["other"]
+    assert c.get("/jobs").status_code == 401
+
+
+def test_result_carries_the_preview_and_raster_size():
+    status = {"state": "done", "tenant_id": "acme", "width": "650", "height": "480",
+              "output_uri": "s3://imagery/tenants/acme/results/j1.geojson",
+              "preview_uri": "s3://imagery/tenants/acme/results/j1.preview.jpg"}
+    body = client({"job:j1:status": status}).get("/jobs/j1/result", headers=A).json()
+    assert (body["width"], body["height"]) == (650, 480)
+    assert "j1.preview.jpg" in body["preview_url"]

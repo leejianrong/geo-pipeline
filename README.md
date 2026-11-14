@@ -49,6 +49,10 @@ $T geopipe viz $JOB --out /data/out/viz     # -> ./data/out/viz/<job>/*.png and 
 
 **Output:** a GeoJSON FeatureCollection in EPSG:4326, one polygon per detection with `class_name`, `score` and `pixel_bbox` (the box in the source raster's pixels). The collection records the model and the source CRS.
 
+### Web UI
+
+`make up` also serves a web UI at <http://localhost:8080> (built on [indah](https://github.com/leejianrong/indah)): sign in with an API key (`dev-key-a` in compose), pick a model, upload a GeoTIFF, watch the progress bar, and review the detections drawn over a preview of the raster, with a minimum-score slider, a class filter, a job list and a GeoJSON download. Uploads through the UI are capped at 200 MB; use the API or CLI for larger rasters. See [ADR-0013](docs/adr/0013-web-frontend-on-indah.md).
+
 ### HTTP API
 
 `make up` also starts an API on `http://localhost:8000` (interactive docs at `/docs`). Every call needs an `X-API-Key` header; the dev keys in `compose.yaml` are `dev-key-a` (tenant `acme`) and `dev-key-b` (tenant `globex`). Tenants only see their own uploads, jobs and results.
@@ -63,7 +67,7 @@ curl -s -H "$H" localhost:8000/jobs/$JOB                              # state an
 curl -s "$(curl -s -H "$H" localhost:8000/jobs/$JOB/result | jq -r .url)" > result.geojson
 ```
 
-`options` takes the same fields as the CLI (below). The keys are placeholders: real authentication, per-tenant quotas and a durable job list come with the hosted service. Presigned URLs are signed for `S3_PUBLIC_ENDPOINT` (`http://localhost:8333` in compose), which must be the address clients reach the store on.
+`GET /jobs` lists the tenant's newest jobs, and `/jobs/{id}/result` also returns a preview image URL and the raster size. `options` takes the same fields as the CLI (below). The keys are placeholders: real authentication, per-tenant quotas and a durable job list come with the hosted service. Presigned URLs are signed for `S3_PUBLIC_ENDPOINT` (`http://localhost:8333` in compose), which must be the address clients reach the store on.
 
 ## Configuration
 
@@ -109,7 +113,7 @@ Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (ever
 
 ## Status and roadmap
 
-Slices V1-V7 and V5b are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark, an HTTP API and a GPU detector. The web frontend is next; see a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
+Slices V1-V8 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark, an HTTP API and a GPU detector. Remaining ideas are durable job records (Postgres), real sign-in, and direct browser uploads; see a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
 
 ## Contributing
 
