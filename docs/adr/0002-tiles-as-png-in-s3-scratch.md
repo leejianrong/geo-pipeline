@@ -23,3 +23,7 @@ The slicer writes 8-bit RGB PNG tiles to `s3://<scratch>/<job_id>/<idx>.png` and
 ## Consequences
 
 Detector is GDAL-free and horizontally scalable; tiles are inspectable and replayable (a failed job can be re-detected without re-slicing). Costs an extra S3 write and read per tile and requires scratch cleanup, which we own. PNG is lossless, so there is no accuracy impact.
+
+## Amendment 2026-11-14
+
+Tiles are written as PNG with compression level 0: encoding at the default level cost 56 ms per tile and capped the pipeline at about 13.5 tiles/s (ADR-0014). The format is unchanged.

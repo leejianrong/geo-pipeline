@@ -267,3 +267,95 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 
 #### Unit
 - Score and class filters reduce the feature set as expected.
+
+## L1: Pipeline overhead (lightweight detector series, ADR-0014)
+
+**Delivers:** the precondition for any model speedup to be visible end to end
+
+**Build plan:** slicer writes PNG tiles with `compress_level=0` (amend ADR-0002); `DETECTOR_THREADS` env (default 4) applied to ONNX Runtime and torch; detector replicas via `docker compose up --scale detector=N` documented and tested (consumer group splits tiles); `geopipe bench` reports slicer ms/tile.
+
+**Demo:** the stub-model pipeline on the real-imagery mosaic goes from 13.5 tiles/s to at least 30 tiles/s, with the same GeoJSON.
+
+### Test plan
+
+#### End-to-end
+- Same job before and after: identical features; stub-pipeline tiles/s at least doubles (measured, three runs).
+- Two detector replicas process one job with no tile lost or duplicated in the output.
+
+#### Integration
+- Slicer tiles decode to the same pixels as before.
+
+#### Unit
+- `DETECTOR_THREADS` reaches the session options; an invalid value fails at startup.
+
+## L2: Nano, tiny and RF-DETR Nano backends
+
+**Delivers:** the candidate models, selectable per job
+
+**Build plan:** YOLOX decoder and letterbox take size and grid from the model; export and register `yolox-nano`, `yolox-tiny`; register `rfdetr-nano`; COCO-200 benchmark rows for each at 1 and 4 threads; document the "fast" preset in README.
+
+**Demo:** `make bench-coco` prints speed and mAP for the new models next to YOLOX-s and RF-DETR Small.
+
+**Rests on assumptions:** L5 (input size, decided in L3).
+
+### Test plan
+
+#### End-to-end
+- A job with `model=yolox-nano` completes on the COCO mosaic with plausible detections.
+
+#### Integration
+- Each backend loads from `DETECTOR_MODELS` and an unknown name still fails with a clear error.
+
+#### Unit
+- Decoder grid is correct at 416 and 640 (existing decode tests parametrised by size).
+
+## L3: SpaceNet fine-tunes and the verdict
+
+**Delivers:** the data that decides which models ship
+
+**Build plan:** fine-tune nano, tiny and RF-DETR Nano on the existing SpaceNet split; benchmark at 416 and 640 inputs; apply the ADR-0014 bar; remove backends that miss it; record the table in `docs/benchmarks/` and update ADR-0014 with the result.
+
+**Demo:** a report table of mAP@.5, F1, ms per tile (1 and 4 threads) and end-to-end tiles/s for every candidate, each marked pass or fail against the bar.
+
+### Test plan
+
+#### End-to-end
+- `make bench-spacenet` reproduces the table from the saved weights.
+
+#### Unit
+- Existing SpaceNet prep tests (no change expected).
+
+## L4: INT8 quantisation
+
+**Delivers:** the faster variant of whichever YOLOX models passed L3
+
+**Build plan:** `scripts/quantise_onnx.py` (ORT static QDQ, per-channel, calibration tiles taken from the SpaceNet training split); `*-int8` backends; accuracy and speed rows in the L3 table.
+
+**Demo:** the report shows each INT8 model's mAP delta against its FP32 model and the speedup; the bar is within 2 points.
+
+### Test plan
+
+#### End-to-end
+- INT8 model run on the benchmark stays within 2 mAP points of FP32; otherwise the INT8 backend is not registered.
+
+#### Unit
+- The script produces a model whose output shape equals the FP32 model's on a fixed input.
+
+## L5: Torch-free ONNX-only detector image
+
+**Delivers:** a small CPU image
+
+**Build plan:** export RF-DETR to ONNX and add an ORT backend; second Dockerfile (or build arg) without torch; compose profile `slim`; CI builds both; licence check on the new image.
+
+**Demo:** `docker images` shows the slim detector at about 0.5 GB; a job on it finishes and matches the torch image's detections within tolerance.
+
+### Test plan
+
+#### End-to-end
+- Same job on both images: features match at IoU 0.9 within a score tolerance.
+
+#### Integration
+- The slim image has no `torch` and passes `make licences`.
+
+#### Unit
+- The ONNX RF-DETR post-processing matches the torch output on a stored fixture tensor.
