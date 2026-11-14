@@ -39,6 +39,10 @@ INT8 (ORT static QDQ, per-channel, 30 SpaceNet training tiles for calibration) p
 
 Torch-free image: 1.05 GB against 4.03 GB (the plan guessed 0.5 GB), model load 0.43 s against about 6 s, same mAP@.5 on SpaceNet (0.659 and 0.596), same speed within noise, identical output on the cat photo. `DETECTOR_RUNTIME=onnx` (set in the slim image) makes `rfdetr*` backends use ONNX Runtime; the model names do not change. The RF-DETR ONNX backend resizes with a plain bilinear filter because PIL's antialiasing cost 0.9 mAP points. CI builds the slim image and runs the cat tests and the licence check on it.
 
+## Publishing tooling (L6)
+
+`make publish-model REPO=<user>/<name>` stages the two YOLOX-tiny ONNX files and a generated model card (CC BY-SA 4.0, SpaceNet attribution, results, limitations, the commit) and uploads only with `UPLOAD=1`. The bar is checked from the committed results, so only models that pass can be staged; RF-DETR Nano is not publishable while the bar stays as written, and YOLOX-s and RF-DETR Small are reference models, not candidates. The files are not uploaded yet: that needs a Hub repo name and a token from the owner.
+
 ## Excluded
 
 | Candidate | Why |

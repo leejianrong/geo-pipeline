@@ -366,11 +366,13 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - The ONNX RF-DETR post-processing matches the torch output on a stored fixture tensor.
 
-## L6: Publish the weights on Hugging Face
+## L6: Publish the weights on Hugging Face (tooling done; the upload waits for a Hub repo and token)
 
 **Delivers:** the fine-tuned models that passed the L3/L4 bar, downloadable by others
 
 **Build plan:** `scripts/publish_model.py` uploads one model (ONNX, or the RF-DETR checkpoint) to a Hugging Face model repo with a generated model card; card template filled from the benchmark report (metrics, speed at 1 and 4 threads, training data and split, one-city caveat, the commit and command that produced it); licence CC BY-SA 4.0 with SpaceNet attribution and a link to the source; the GitHub README links to the model pages. Only models that passed the bar are published. Nothing derived from COCO is uploaded (ADR-0010).
+
+**Result:** `scripts/publish_model.py` (`make publish-model REPO=user/name`) stages `yolox-tiny-buildings` (FP32 and INT8) with a generated card (`scripts/model_card.md`), checks the bar from the committed results and refuses anything that fails it (RF-DETR Nano is refused as the bar is written), and uploads only with `UPLOAD=1` and `HF_TOKEN`. The dry run was checked; nothing has been uploaded yet.
 
 **Demo:** `hf_hub_download` of the published ONNX file into a clean directory, then a job on `data/models` weights from that file reproduces the benchmark mAP@.5 within 0.005.
 

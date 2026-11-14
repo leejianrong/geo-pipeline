@@ -81,6 +81,8 @@ Per-job options, passed to `geopipe submit`:
 
 On a machine with an NVIDIA GPU and the NVIDIA container runtime, `make up-gpu` runs the detector on it (`DETECTOR_DEVICE=cuda`; it refuses to start without a visible GPU). It is about 2.5x faster for RF-DETR on our test raster, and `make bench-device` measures CPU against GPU on your machine. The GPU image is much larger because of the CUDA libraries. See [ADR-0012](docs/adr/0012-gpu-detector.md).
 
+Publishing: `make publish-model REPO=<user>/yolox-tiny-buildings` stages the fine-tuned YOLOX-tiny models (FP32 and INT8) with a model card for Hugging Face under CC BY-SA 4.0 (add `UPLOAD=1` and `HF_TOKEN` to upload). Only models that pass the ADR-0014 bar are accepted.
+
 Torch-free image: `make up-slim` runs the detector without torch (ONNX Runtime only; 1.05 GB instead of 4 GB, models load in 0.4 s instead of 6 s) with the same model names, the same detections and the same speed. Fine-tuned RF-DETR weights need `make export-rfdetr RUN=rfdetr-spacenet VARIANT=Small` first. See [ADR-0014](docs/adr/0014-lightweight-cpu-detector.md).
 
 CPU throughput: the detector uses `DETECTOR_THREADS` threads per worker (default 4; more was not faster on a 20-thread CPU), and `docker compose up -d --scale detector=2` runs replicas that share the tile stream. With a stub model on real imagery the pipeline went from 13.5 to 33.5 tiles/s with one detector and 48 with two, after the slicer started writing uncompressed PNG tiles and overlapping encode and upload ([ADR-0014](docs/adr/0014-lightweight-cpu-detector.md)). Do not scale the CPU and GPU detectors together.
