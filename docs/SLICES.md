@@ -327,11 +327,13 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - Existing SpaceNet prep tests (no change expected).
 
-## L4: INT8 quantisation
+## L4: INT8 quantisation (done)
 
 **Delivers:** the faster variant of whichever YOLOX models passed L3
 
 **Build plan:** `scripts/quantise_onnx.py` (ORT static QDQ, per-channel, calibration tiles taken from the SpaceNet training split); `*-int8` backends; accuracy and speed rows in the L3 table.
+
+**Result:** YOLOX-s INT8 0.573 mAP@.5 (-1.3 against FP32), 2.4x to 2.9x faster; YOLOX-tiny INT8 0.559 (-0.5), 1.5x to 2.4x faster. Both registered. Numbers in `docs/benchmarks/lightweight-detector.md`.
 
 **Demo:** the report shows each INT8 model's mAP delta against its FP32 model and the speedup; the bar is within 2 points.
 
@@ -341,7 +343,7 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 - INT8 model run on the benchmark stays within 2 mAP points of FP32; otherwise the INT8 backend is not registered.
 
 #### Unit
-- The script produces a model whose output shape equals the FP32 model's on a fixed input.
+- The script itself fails if the quantised model's output shape differs from the FP32 model's (checked on every run; no host test, since onnxruntime is not in the unit layer).
 
 ## L5: Torch-free ONNX-only detector image
 

@@ -2,7 +2,7 @@
 
 GeoTIFF in S3 → slicer → detector → postprocess → georeferenced GeoJSON, as three workers on Valkey Streams plus an S3-API object store (SeaweedFS), run with Docker Compose. It is meant to become a hosted service later, so contracts carry `tenant_id` and stay stateless.
 
-Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V8 and V5b merged (V5 = YOLOX plus a COCO benchmark, V6 = HTTP API, V7 = GPU detector, V5b = SpaceNet fine-tunes, V8 = web UI on indah). Next: the lightweight CPU detector series (L1-L3 done; L4-L6 remain) (`docs/SLICES.md`, ADR-0014); other open cards are Postgres job records, identity-provider sign-in. Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
+Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V8 and V5b merged (V5 = YOLOX plus a COCO benchmark, V6 = HTTP API, V7 = GPU detector, V5b = SpaceNet fine-tunes, V8 = web UI on indah). Next: the lightweight CPU detector series (L1-L4 done; L5-L6 remain) (`docs/SLICES.md`, ADR-0014); other open cards are Postgres job records, identity-provider sign-in. Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
 
 ## Layout
 - `libs/geopipe/`: shared contracts and helpers; must install on 3.12 and 3.13. Only `raster.py`, `finalise.py`, `viz.py` and `bench.py` need GDAL, matplotlib or pycocotools (`viz` and `bench` extras); the detector must never import them.
@@ -14,7 +14,7 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 
 ## Commands
 - `make check`: lint and unit tests, no Docker. This is the pre-push hook (`make hooks` installs it).
-- `make e2e`: stack plus stack tests on a fresh stack (Docker; first build is slow because of torch). `make bench-large`: slow 2 GB benchmark, not in CI. `make bench-coco`: RF-DETR vs YOLOX on 200 COCO images (downloads data). `make spacenet-data`: 300 SpaceNet Khartoum tiles plus COCO files in `data/spacenet/` (CC BY-SA 4.0, never commit; metrics and plots may be). `make train-rfdetr` and `make train-yolox` (GPU, use `train/Dockerfile`) then `make bench-spacenet`; fine-tuned weights live in `data/models/` and are enabled through `DETECTOR_MODELS`.
+- `make e2e`: stack plus stack tests on a fresh stack (Docker; first build is slow because of torch). `make bench-large`: slow 2 GB benchmark, not in CI. `make bench-coco`: RF-DETR vs YOLOX on 200 COCO images (downloads data). `make spacenet-data`: 300 SpaceNet Khartoum tiles plus COCO files in `data/spacenet/` (CC BY-SA 4.0, never commit; metrics and plots may be). `make train-rfdetr` and `make train-yolox` (`VARIANT=`, `SIZE=`; GPU, use `train/Dockerfile`) `make quantise RUN=<dir>` for INT8, then `make bench-spacenet` (`THREADS=`, `OUT=`); fine-tuned weights live in `data/models/` and are enabled through `DETECTOR_MODELS`.
 - `make up-gpu`: detector on the GPU via `compose.gpu.yaml`; never run it alongside the CPU detector (shared consumer group). `make bench-device`: CPU vs GPU tiles/s and parity (needs a GPU, not in CI).
 - `make base` (default GDAL, both Pythons), `make base-all` (every GDAL x Python, slow), `make licences`, `make down`. Bare `make` lists targets.
 
