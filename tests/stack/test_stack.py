@@ -61,7 +61,7 @@ def test_round_trip_boxes_land_on_the_drawn_rectangles(stack):
             f.write(body)
 
 
-@pytest.mark.parametrize("model", ["rfdetr", "yolox"])
+@pytest.mark.parametrize("model", ["rfdetr", "yolox", "yolox-tiny", "yolox-nano", "rfdetr-nano"])
 def test_each_model_finds_both_cats_in_a_real_photo(stack, model):
     r, s3, _ = stack
     key = upload_photo_tif(s3)

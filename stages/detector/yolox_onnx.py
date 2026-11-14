@@ -1,11 +1,11 @@
 """YOLOX (Apache-2.0) through ONNX Runtime: no torch and no `yolox` package at inference.
 
 Pre- and post-processing follow the reference demo in the YOLOX repository: letterbox to
-640x640 with grey padding, BGR input in 0-255, grid decode of the raw head, then
-class-wise NMS.
+the model's input size (640 for -s, 416 for nano and tiny) with grey padding, BGR input in
+0-255, grid decode of the raw head, then class-wise NMS.
 """
 
-import os
+from functools import cache
 
 import numpy as np
 from backends import resolve_device, thread_count
@@ -42,6 +42,17 @@ def letterbox(img: np.ndarray, size=SIZE) -> tuple[np.ndarray, float]:
     return np.ascontiguousarray(chw, dtype=np.float32)[None], ratio
 
 
+@cache
+def _grid(size: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+    grids, strides = [], []
+    for s in STRIDES:
+        gh, gw = size[0] // s, size[1] // s
+        xv, yv = np.meshgrid(np.arange(gw), np.arange(gh))
+        grids.append(np.stack((xv, yv), 2).reshape(-1, 2))
+        strides.append(np.full((gh * gw, 1), s))
+    return np.concatenate(grids), np.concatenate(strides)
+
+
 def decode(raw: np.ndarray, size=SIZE) -> tuple[np.ndarray, np.ndarray]:
     """Raw head output (1, N, 85) -> xyxy boxes in letterboxed pixels and (N, 80) scores.
 
@@ -49,22 +60,16 @@ def decode(raw: np.ndarray, size=SIZE) -> tuple[np.ndarray, np.ndarray]:
     and class probabilities are already sigmoid-ed.
     """
     out = raw[0]
-    grids, strides = [], []
-    for s in STRIDES:
-        gh, gw = size[0] // s, size[1] // s
-        xv, yv = np.meshgrid(np.arange(gw), np.arange(gh))
-        grids.append(np.stack((xv, yv), 2).reshape(-1, 2))
-        strides.append(np.full((gh * gw, 1), s))
-    grid, stride = np.concatenate(grids), np.concatenate(strides)
+    grid, stride = _grid(tuple(size))
     xy = (out[:, :2] + grid) * stride
     wh = np.exp(out[:, 2:4]) * stride
     return np.concatenate([xy - wh / 2, xy + wh / 2], axis=1), out[:, 4:5] * out[:, 5:]
 
 
 def yolox_boxes(raw: np.ndarray, ratio: float, shape: tuple[int, int], conf: float,
-                nms_iou: float = NMS_IOU, names: list[str] = COCO80) -> list[Box]:
+                nms_iou: float = NMS_IOU, names: list[str] = COCO80, size=SIZE) -> list[Box]:
     """Decode, threshold on the best class, undo the letterbox scale, clip, and NMS per class."""
-    boxes, scores = decode(raw)
+    boxes, scores = decode(raw, size)
     cls = scores.argmax(1)
     best = scores[np.arange(len(scores)), cls]
     keep = best >= conf
@@ -82,7 +87,7 @@ def yolox_boxes(raw: np.ndarray, ratio: float, shape: tuple[int, int], conf: flo
     return result
 
 
-def load_yolox(device: str = "cpu", path: str | None = None, names: list[str] = COCO80):
+def load_yolox(device: str, path: str, names: list[str] = COCO80):
     import onnxruntime as ort  # only when this backend is enabled
 
     if device == "cuda":
@@ -92,14 +97,15 @@ def load_yolox(device: str = "cpu", path: str | None = None, names: list[str] = 
         providers.insert(0, "CUDAExecutionProvider")
     opts = ort.SessionOptions()
     opts.intra_op_num_threads = thread_count()
-    session = ort.InferenceSession(path or os.environ.get("YOLOX_ONNX", "/models/yolox_s.onnx"),
-                                   opts, providers=providers)
+    session = ort.InferenceSession(path, opts, providers=providers)
     if device == "cuda" and session.get_providers()[0] != "CUDAExecutionProvider":
         raise SystemExit("onnxruntime could not load its CUDA provider (missing CUDA libraries?)")
-    name = session.get_inputs()[0].name
+    inp = session.get_inputs()[0]
+    size = (inp.shape[2], inp.shape[3])  # static in every export we use
 
     def detect(img: np.ndarray, conf: float) -> list[Box]:
-        x, ratio = letterbox(img)
-        return yolox_boxes(session.run(None, {name: x})[0], ratio, img.shape[:2], conf, names=names)
+        x, ratio = letterbox(img, size)
+        return yolox_boxes(session.run(None, {inp.name: x})[0], ratio, img.shape[:2], conf,
+                           names=names, size=size)
 
     return detect

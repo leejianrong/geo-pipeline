@@ -288,7 +288,7 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - `DETECTOR_THREADS` reaches the session options; an invalid value fails at startup.
 
-## L2: Nano, tiny and RF-DETR Nano backends
+## L2: Nano, tiny and RF-DETR Nano backends (done)
 
 **Delivers:** the candidate models, selectable per job
 
