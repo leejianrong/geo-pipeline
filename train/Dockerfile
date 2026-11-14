@@ -14,4 +14,6 @@ ADD --checksum=sha256:b85cfceda3538e3a00f6069192c89a1da7c1e39e77272a3d68d73e0841
 RUN mkdir /opt/yolox && tar xzf /tmp/yolox.tgz -C /opt/yolox --strip-components=1 && rm /tmp/yolox.tgz
 ADD --checksum=sha256:f55ded7181e1b0c13285c56e7790b8f0e8f8db590fe4edb37f0b7f345c913a30 \
     https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth /models/yolox_s.pth
+ADD --checksum=sha256:9de513de589ac98bb92d3bca53b5af7b9acfa9b0bacb831f7999d0f7afaee8f0 \
+    https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.pth /models/yolox_tiny.pth
 ENV PYTHONPATH=/opt/yolox

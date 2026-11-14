@@ -34,7 +34,7 @@ services:
     environment:
       <<: *env
       # fine-tuned models need weights from `make train-rfdetr`; add e.g. rfdetr-buildings
-      DETECTOR_MODELS: ${DETECTOR_MODELS:-stub,rfdetr,yolox,yolox-tiny,yolox-nano,rfdetr-nano}
+      DETECTOR_MODELS: ${DETECTOR_MODELS:-stub,rfdetr,yolox,yolox-tiny,rfdetr-nano}
       DETECTOR_THREADS: ${DETECTOR_THREADS:-4}
     volumes: ["./data/models:/weights:ro"]
     depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
@@ -56,7 +56,7 @@ services:
     environment:
       API_URL: http://api:8000
       S3_REWRITE: localhost:8333=seaweedfs:8333  # the API signs URLs for the host-published port
-      UI_MODELS: ${DETECTOR_MODELS:-stub,rfdetr,yolox,yolox-tiny,yolox-nano,rfdetr-nano}
+      UI_MODELS: ${DETECTOR_MODELS:-stub,rfdetr,yolox,yolox-tiny,rfdetr-nano}
     ports: ["127.0.0.1:8080:8000"]
     depends_on: [api]
   tools:  # test runner on the compose network: `make e2e`

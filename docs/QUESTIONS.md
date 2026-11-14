@@ -70,3 +70,4 @@ Facts measured on this machine (i9-12900H, ORT 1.31 CPU, 4 threads, one 640 px t
 | F-L3 | Include pipeline overhead fixes | ANSWERED | Yes, slice L1 first | ADR-0014 |
 | F-L4 | Torch-free ONNX-only detector image | ANSWERED | Yes, slice L5 last | ADR-0014 |
 | F-L5 | Default model | ANSWERED | Opt-in "fast" preset; RF-DETR Small stays the default | ADR-0014 |
+| L7 | Where and how to publish the fine-tuned weights | ANSWERED (user, 2026-11-14) | Hugging Face for weights, GitHub for code; CC BY-SA 4.0 with SpaceNet attribution; only models passing the bar | ADR-0014, SLICES L6 |
