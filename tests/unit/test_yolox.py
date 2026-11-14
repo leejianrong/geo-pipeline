@@ -74,3 +74,16 @@ def test_single_class_head_uses_the_given_names():
     raw[0, 20 * 80 + 10] = (0.5, 0.5, np.log(5), np.log(5), 0.9, 0.8)
     [box] = yolox_boxes(raw, ratio=1.0, shape=(640, 640), conf=0.25, names=["building"])
     assert (box.class_id, box.class_name) == (0, "building")
+
+
+def test_nano_size_416_has_3549_anchors_and_decodes_from_its_own_grid():
+    # 52*52 + 26*26 + 13*13 anchors; anchor 10 is cell (x=10, y=0) at stride 8
+    raw = np.zeros((1, 3549, 85), np.float32)
+    raw[0, 10, :6] = (0.5, 0.5, np.log(5), np.log(5), 0.9, 0.9)  # class 0 (person)
+    [box] = yolox_boxes(raw, ratio=1.0, shape=(416, 416), conf=0.25, size=(416, 416))
+    assert (box.x1, box.y1, box.x2, box.y2) == pytest.approx((64.0, 0.0, 104.0, 24.0), abs=1e-3)
+
+
+def test_letterbox_pads_to_the_requested_size():
+    x, ratio = letterbox(np.zeros((640, 640, 3), np.uint8), (416, 416))
+    assert x.shape == (1, 3, 416, 416) and ratio == 0.65

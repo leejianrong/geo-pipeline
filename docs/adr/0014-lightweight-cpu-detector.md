@@ -22,6 +22,10 @@ On CPU, YOLOX-s takes about 65 ms per tile and RF-DETR Small about 180 ms (forwa
 
 Stub model, real imagery, 48 tiles: 13.5 tiles/s before; 22.6 with PNG level 0 (slicer 43 ms/tile; encode 17, upload 12); 33.5 after encode and upload moved onto 4 threads (slicer 18 ms/tile); 48 with two detector replicas. GDAL reads stay on the slicer's main thread.
 
+## Measured after L2 (2026-11-14, COCO-200, zero-shot)
+
+mAP@[.5:.95] and model time per image: RF-DETR Small 0.566, 0.18 s; RF-DETR Nano 0.534, 0.10 s; YOLOX-s 0.440, 0.07 s; YOLOX-tiny 0.348, 0.02 s; YOLOX-nano 0.303, 0.01 s. All five are registered; slice L3 applies the bar on SpaceNet and removes those that miss it. The YOLOX backend reads its input size from the ONNX model.
+
 ## Excluded
 
 | Candidate | Why |

@@ -83,6 +83,8 @@ On a machine with an NVIDIA GPU and the NVIDIA container runtime, `make up-gpu` 
 
 CPU throughput: the detector uses `DETECTOR_THREADS` threads per worker (default 4; more was not faster on a 20-thread CPU), and `docker compose up -d --scale detector=2` runs replicas that share the tile stream. With a stub model on real imagery the pipeline went from 13.5 to 33.5 tiles/s with one detector and 48 with two, after the slicer started writing uncompressed PNG tiles and overlapping encode and upload ([ADR-0014](docs/adr/0014-lightweight-cpu-detector.md)). Do not scale the CPU and GPU detectors together.
 
+Lightweight models for CPU use: `yolox-tiny`, `yolox-nano` (ONNX Runtime, 416 px input) and `rfdetr-nano` are enabled by default beside `rfdetr` (the default choice) and `yolox`. On 200 COCO images, `rfdetr-nano` keeps most of RF-DETR Small's accuracy (mAP@.5 0.71 against 0.75) at about 1.8x the speed, while `yolox-tiny` and `yolox-nano` are 3.5x and 7x faster than `yolox` but lose 0.09 and 0.14 mAP@[.5:.95] ([report](docs/benchmarks/coco-val-200.md)). COCO is a sanity check only: which of them ship is decided on SpaceNet fine-tunes (slice L3 in [`docs/SLICES.md`](docs/SLICES.md)).
+
 Duplicates across overlapping tiles are removed by class-wise NMS. An object larger than the overlap zone can still be split. Boxes only (no oriented boxes or segmentation).
 
 ## Benchmark

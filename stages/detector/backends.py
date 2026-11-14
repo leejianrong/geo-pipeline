@@ -47,20 +47,21 @@ def to_boxes(det) -> list[Box]:
             in zip(det.xyxy, det.confidence, det.class_id, det.data["class_name"], strict=True)]
 
 
-def load_rfdetr(device: str, weights: str | None = None) -> Backend:
+def load_rfdetr(device: str, weights: str | None = None, size: str = "Small") -> Backend:
+    import rfdetr  # heavy import, only when this backend is enabled
     import torch
-    from rfdetr import RFDETRSmall  # heavy import, only when this backend is enabled
 
     torch.set_num_threads(thread_count())
-    model = RFDETRSmall(device=resolve_device(device, torch.cuda.is_available()),
-                        **({"pretrain_weights": weights} if weights else {}))
+    model = getattr(rfdetr, f"RFDETR{size}")(
+        device=resolve_device(device, torch.cuda.is_available()),
+        **({"pretrain_weights": weights} if weights else {}))
     return lambda img, conf: to_boxes(model.predict(img, threshold=conf))
 
 
-def load_yolox_backend(device: str) -> Backend:
+def load_yolox_backend(device: str, variant: str = "s") -> Backend:
     from yolox_onnx import load_yolox
 
-    return load_yolox(device)
+    return load_yolox(device, f"/models/yolox_{variant}.onnx")
 
 
 def load_yolox_buildings(device: str) -> Backend:
@@ -81,4 +82,7 @@ def load_rfdetr_buildings(device: str) -> Backend:
 # when enabled.
 BACKENDS: dict[str, Callable[[str], Backend]] = {
     "stub": lambda device: stub_detect, "rfdetr": load_rfdetr, "yolox": load_yolox_backend,
+    "rfdetr-nano": lambda device: load_rfdetr(device, size="Nano"),
+    "yolox-nano": lambda device: load_yolox_backend(device, "nano"),
+    "yolox-tiny": lambda device: load_yolox_backend(device, "tiny"),
     "rfdetr-buildings": load_rfdetr_buildings, "yolox-buildings": load_yolox_buildings}
