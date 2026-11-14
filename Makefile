@@ -1,4 +1,4 @@
-.PHONY: help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr bench-spacenet licences hooks
+.PHONY: help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
 UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pycocotools --with pytest --with ruff --with fastapi --with httpx
@@ -63,10 +63,17 @@ train-rfdetr:  ## fine-tune RF-DETR Small on the SpaceNet files (GPU, ~20 min) -
 	docker run --rm --gpus all --shm-size=8g -v "$$PWD/data:/data" -v "$$PWD/scripts:/scripts:ro" \
 	  --entrypoint python geo-train /scripts/train_rfdetr.py --epochs 30
 
-bench-spacenet: down  ## fine-tuned RF-DETR on the 30 held-out SpaceNet tiles; report in data/out/bench-spacenet/
-	DETECTOR_MODELS=stub,rfdetr-buildings $(MAKE) up
+train-yolox:  ## fine-tune YOLOX-s on the SpaceNet files (GPU) and export ONNX -> data/models/yolox-spacenet
+	docker build -q -t geo-train -f train/Dockerfile .
+	docker run --rm --gpus all --shm-size=8g -v "$$PWD/data:/data" -v "$$PWD/scripts:/scripts:ro" \
+	  --entrypoint sh geo-train -c 'cd /scripts && python /opt/yolox/tools/train.py -f yolox_exp.py \
+	  -d 1 -b 16 --fp16 -c /models/yolox_s.pth && python export_yolox_onnx.py yolox_exp.py \
+	  /data/models/yolox-spacenet/best_ckpt.pth /data/models/yolox-spacenet/yolox_buildings.onnx'
+
+bench-spacenet: down  ## fine-tuned RF-DETR and YOLOX on the 30 held-out SpaceNet tiles; report in data/out/bench-spacenet/
+	DETECTOR_MODELS=stub,rfdetr-buildings,yolox-buildings $(MAKE) up
 	docker compose run --rm --build tools geopipe bench --annotations /data/spacenet/coco/test.json \
-	  --images /data/spacenet/AOI_5_Khartoum/PS-RGB --models rfdetr-buildings --limit 30 \
+	  --images /data/spacenet/AOI_5_Khartoum/PS-RGB --models rfdetr-buildings,yolox-buildings --limit 30 \
 	  --out /data/out/bench-spacenet --title "SpaceNet Khartoum: 30 held-out tiles" \
 	  --caveat "One city (Khartoum); the models were fine-tuned on 240 tiles of the same city, so this does not show generalisation to other places."
 

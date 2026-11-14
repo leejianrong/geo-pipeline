@@ -2,7 +2,7 @@
 
 GeoTIFF in S3 → slicer → detector → postprocess → georeferenced GeoJSON, as three workers on Valkey Streams plus an S3-API object store (SeaweedFS), run with Docker Compose. It is meant to become a hosted service later, so contracts carry `tenant_id` and stay stateless.
 
-Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V7 merged (V5 = YOLOX plus a COCO benchmark, V6 = HTTP API, V7 = GPU detector); SpaceNet and a local fine-tune are V5b. Next: V5b, then V8. Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
+Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the acceptance criteria). Plan: `docs/PLAN.md`. Decisions: `docs/adr/`. Status: V1-V7 and V5b merged (V5 = YOLOX plus a COCO benchmark, V6 = HTTP API, V7 = GPU detector, V5b = SpaceNet fine-tunes of both models). Next: V8 (web frontend). Work is tracked on the Pandan board `GEO` (`pandan board use GEO`); move cards as slices land. Trust the code over the docs where they disagree, and fix the doc.
 
 ## Layout
 - `libs/geopipe/`: shared contracts and helpers; must install on 3.12 and 3.13. Only `raster.py`, `finalise.py`, `viz.py` and `bench.py` need GDAL, matplotlib or pycocotools (`viz` and `bench` extras); the detector must never import them.
@@ -13,7 +13,7 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 
 ## Commands
 - `make check`: lint and unit tests, no Docker. This is the pre-push hook (`make hooks` installs it).
-- `make e2e`: stack plus stack tests on a fresh stack (Docker; first build is slow because of torch). `make bench-large`: slow 2 GB benchmark, not in CI. `make bench-coco`: RF-DETR vs YOLOX on 200 COCO images (downloads data). `make spacenet-data`: 300 SpaceNet Khartoum tiles plus COCO files in `data/spacenet/` (CC BY-SA 4.0, never commit; metrics and plots may be). `make train-rfdetr` (GPU) then `make bench-spacenet`; fine-tuned weights live in `data/models/` and are enabled through `DETECTOR_MODELS`.
+- `make e2e`: stack plus stack tests on a fresh stack (Docker; first build is slow because of torch). `make bench-large`: slow 2 GB benchmark, not in CI. `make bench-coco`: RF-DETR vs YOLOX on 200 COCO images (downloads data). `make spacenet-data`: 300 SpaceNet Khartoum tiles plus COCO files in `data/spacenet/` (CC BY-SA 4.0, never commit; metrics and plots may be). `make train-rfdetr` and `make train-yolox` (GPU, use `train/Dockerfile`) then `make bench-spacenet`; fine-tuned weights live in `data/models/` and are enabled through `DETECTOR_MODELS`.
 - `make up-gpu`: detector on the GPU via `compose.gpu.yaml`; never run it alongside the CPU detector (shared consumer group). `make bench-device`: CPU vs GPU tiles/s and parity (needs a GPU, not in CI).
 - `make base` (default GDAL, both Pythons), `make base-all` (every GDAL x Python, slow), `make licences`, `make down`. Bare `make` lists targets.
 
@@ -38,4 +38,5 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 - Submitting identical options is idempotent, so a reused stack returns old results. Tests and benchmarks need a fresh stack (`make e2e` and `make bench-large` start one) or a fresh `tenant_id` (`geopipe bench` does).
 - The WSL2 clock can step backwards. Measure in-process durations with `time.monotonic()`; wall timestamps compared across containers can be off.
 - COCO images carry non-commercial Flickr licences: never commit or publish them or anything derived from them (ADR-0010). `data/` files written by containers are root-owned, so the host cannot write there.
+- Training lives in `train/Dockerfile`, not the inference images. YOLOX's `setup.py` does not build, so its pinned source is on `PYTHONPATH`, and its own ONNX exporter breaks on current torch: use `scripts/export_yolox_onnx.py`. RF-DETR and YOLOX both compile kernels on first use and need gcc/g++ and ninja in the image.
 - Subagent `isolation: worktree` branches from the default branch, not the current one, and is deleted if unchanged. Create the worktree yourself when you need a specific commit.

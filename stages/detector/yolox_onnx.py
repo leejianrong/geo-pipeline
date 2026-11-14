@@ -62,7 +62,7 @@ def decode(raw: np.ndarray, size=SIZE) -> tuple[np.ndarray, np.ndarray]:
 
 
 def yolox_boxes(raw: np.ndarray, ratio: float, shape: tuple[int, int], conf: float,
-                nms_iou: float = NMS_IOU) -> list[Box]:
+                nms_iou: float = NMS_IOU, names: list[str] = COCO80) -> list[Box]:
     """Decode, threshold on the best class, undo the letterbox scale, clip, and NMS per class."""
     boxes, scores = decode(raw)
     cls = scores.argmax(1)
@@ -78,11 +78,11 @@ def yolox_boxes(raw: np.ndarray, ratio: float, shape: tuple[int, int], conf: flo
         for k in nms(boxes[idx], best[idx], nms_iou):
             x1, y1, x2, y2 = boxes[idx[k]]
             result.append(Box(x1=float(x1), y1=float(y1), x2=float(x2), y2=float(y2),
-                              score=float(best[idx[k]]), class_id=int(c), class_name=COCO80[c]))
+                              score=float(best[idx[k]]), class_id=int(c), class_name=names[c]))
     return result
 
 
-def load_yolox(device: str = "cpu"):
+def load_yolox(device: str = "cpu", path: str | None = None, names: list[str] = COCO80):
     import onnxruntime as ort  # only when this backend is enabled
 
     if device == "cuda":
@@ -90,7 +90,7 @@ def load_yolox(device: str = "cpu"):
     providers = ["CPUExecutionProvider"]
     if resolve_device(device, "CUDAExecutionProvider" in ort.get_available_providers()) == "cuda":
         providers.insert(0, "CUDAExecutionProvider")
-    session = ort.InferenceSession(os.environ.get("YOLOX_ONNX", "/models/yolox_s.onnx"),
+    session = ort.InferenceSession(path or os.environ.get("YOLOX_ONNX", "/models/yolox_s.onnx"),
                                    providers=providers)
     if device == "cuda" and session.get_providers()[0] != "CUDAExecutionProvider":
         raise SystemExit("onnxruntime could not load its CUDA provider (missing CUDA libraries?)")
@@ -98,6 +98,6 @@ def load_yolox(device: str = "cpu"):
 
     def detect(img: np.ndarray, conf: float) -> list[Box]:
         x, ratio = letterbox(img)
-        return yolox_boxes(session.run(None, {name: x})[0], ratio, img.shape[:2], conf)
+        return yolox_boxes(session.run(None, {name: x})[0], ratio, img.shape[:2], conf, names=names)
 
     return detect
