@@ -31,7 +31,11 @@ services:
     depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   detector:
     build: {context: ., dockerfile: stages/detector/Dockerfile}
-    environment: *env
+    environment:
+      <<: *env
+      # fine-tuned models need weights from `make train-rfdetr`; add e.g. rfdetr-buildings
+      DETECTOR_MODELS: ${DETECTOR_MODELS:-stub,rfdetr,yolox}
+    volumes: ["./data/models:/weights:ro"]
     depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   postprocess:
     build: {context: ., dockerfile: stages/postprocess/Dockerfile}

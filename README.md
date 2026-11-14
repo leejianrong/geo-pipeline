@@ -81,7 +81,11 @@ Duplicates across overlapping tiles are removed by class-wise NMS. An object lar
 
 ## Benchmark
 
-`make bench-coco` runs 200 COCO val2017 images through the real pipeline with both detectors and writes a report and plots to `data/out/bench/`: mAP@[.5:.95], mAP@.5, precision, recall, F1, and latency per image. It downloads COCO's annotations once (241 MB, `make coco-data`) and the 200 images (about 30 MB), and keeps them out of git because COCO's image licences include non-commercial terms. COCO shows everyday objects, so the scores do not predict performance on overhead imagery; a SpaceNet benchmark with fine-tuned weights is planned (see [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md)).
+`make bench-coco` runs 200 COCO val2017 images through the real pipeline with both detectors and writes a report and plots to `data/out/bench/`: mAP@[.5:.95], mAP@.5, precision, recall, F1, and latency per image. It downloads COCO's annotations once (241 MB, `make coco-data`) and the 200 images (about 30 MB), and keeps them out of git because COCO's image licences include non-commercial terms. COCO shows everyday objects, so the scores do not predict performance on overhead imagery; overhead imagery is covered by a SpaceNet benchmark below.
+
+### SpaceNet buildings (fine-tuned)
+
+`make spacenet-data` fetches 300 SpaceNet 2 Khartoum tiles (730 MB, CC BY-SA 4.0, kept out of git), `make train-rfdetr` fine-tunes RF-DETR Small on 240 of them on the GPU (about 7 minutes), and `make bench-spacenet` scores the other 30 through the full pipeline: **mAP@.5 0.66, F1 0.64** for the fine-tuned model, where the COCO weights score 0 because they have no building class. One city and one run; details and caveats in [`docs/benchmarks/spacenet-khartoum.md`](docs/benchmarks/spacenet-khartoum.md) and [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md). Enable the model with `DETECTOR_MODELS=stub,rfdetr,yolox,rfdetr-buildings`.
 
 ## GDAL + Python + numpy 2 base images
 

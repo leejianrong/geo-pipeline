@@ -13,7 +13,7 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 
 ## Commands
 - `make check`: lint and unit tests, no Docker. This is the pre-push hook (`make hooks` installs it).
-- `make e2e`: stack plus stack tests on a fresh stack (Docker; first build is slow because of torch). `make bench-large`: slow 2 GB benchmark, not in CI. `make bench-coco`: RF-DETR vs YOLOX on 200 COCO images (downloads data). `make spacenet-data`: 300 SpaceNet Khartoum tiles plus COCO files in `data/spacenet/` (CC BY-SA 4.0, never commit).
+- `make e2e`: stack plus stack tests on a fresh stack (Docker; first build is slow because of torch). `make bench-large`: slow 2 GB benchmark, not in CI. `make bench-coco`: RF-DETR vs YOLOX on 200 COCO images (downloads data). `make spacenet-data`: 300 SpaceNet Khartoum tiles plus COCO files in `data/spacenet/` (CC BY-SA 4.0, never commit; metrics and plots may be). `make train-rfdetr` (GPU) then `make bench-spacenet`; fine-tuned weights live in `data/models/` and are enabled through `DETECTOR_MODELS`.
 - `make up-gpu`: detector on the GPU via `compose.gpu.yaml`; never run it alongside the CPU detector (shared consumer group). `make bench-device`: CPU vs GPU tiles/s and parity (needs a GPU, not in CI).
 - `make base` (default GDAL, both Pythons), `make base-all` (every GDAL x Python, slow), `make licences`, `make down`. Bare `make` lists targets.
 
