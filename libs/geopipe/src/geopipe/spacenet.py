@@ -70,15 +70,16 @@ def split(ids: list[int], valid: int = 30, test: int = 30) -> dict[str, list[int
 
 
 def prepare(root: Path, out: Path) -> dict[str, int]:
-    """Write `out/{train,valid}/` (PNG + `_annotations.coco.json`, the layout RF-DETR trains on)
-    and `out/test.json` (boxes for the GeoTIFFs in `root/PS-RGB`, for `geopipe bench`)."""
+    """Write `out/{train,valid,test}/` (PNG + `_annotations.coco.json`, the layout RF-DETR trains
+    on and the studio registers) and `out/test.json` (boxes for the GeoTIFFs in `root/PS-RGB`,
+    for `geopipe bench`)."""
     from PIL import Image
 
     from .messages import Window
     from .raster import open_raster, read_tile
 
     parts = split(tile_ids(root))
-    for name in ("train", "valid"):
+    for name in ("train", "valid", "test"):
         (out / name).mkdir(parents=True, exist_ok=True)
         for i in parts[name]:
             raster = open_raster(str(root / "PS-RGB" / f"img{i}.tif"))

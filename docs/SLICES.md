@@ -413,11 +413,13 @@ Requirements RS1 to RS8 are in `PLAN.md`. Order: the riskiest unknown first (S0)
 #### Unit
 - None (a spike); the result is a paragraph in ADR-0015.
 
-## S1: Explore a dataset
+## S1: Explore a dataset (done)
 
 **Delivers:** RS1, and registry v0 (datasets)
 
 **Build plan:** dataset manifests (ADR-0016) and `geopipe register-builtin`, which copies the SpaceNet COCO files and images to `shared/datasets/spacenet-khartoum/` with thumbnails and licence and attribution text; API `GET /datasets`, `/datasets/{id}`, `/datasets/{id}/images?split&page`, image and annotation endpoints, tenant and `shared/` visibility rules; statistics in `geopipe.viewer` (boxes per image, box size distribution); the Explore tab with dataset select, split filter, `Gallery`, `ImageOverlay` with ground-truth boxes, two charts, attribution banner. Split `stages/frontend/app.py` per tab.
+
+**Result:** `make register-builtin` after `make spacenet-data` (which now also writes test PNGs); the Explore tab lists shared and own datasets, with split control, gallery with box counts, two histograms with captions, attribution and a ground-truth overlay. Checked with unit tests, stack tests through the indah session path and a real-browser screenshot of the 30 SpaceNet test tiles (510 boxes, 4 empty images).
 
 **Demo:** open Explore, pick SpaceNet Khartoum, filter to the test split (30 images), click one and see its ground-truth boxes with the CC BY-SA attribution on screen.
 
