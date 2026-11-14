@@ -64,11 +64,13 @@ def load_yolox_backend(device: str, variant: str = "s") -> Backend:
     return load_yolox(device, f"/models/yolox_{variant}.onnx")
 
 
-def load_yolox_buildings(device: str, run: str = "yolox-spacenet") -> Backend:
-    """A YOLOX fine-tuned on SpaceNet buildings (`make train-yolox`), exported to ONNX."""
+def load_yolox_buildings(device: str, run: str = "yolox-spacenet", int8: bool = False) -> Backend:
+    """A YOLOX fine-tuned on SpaceNet buildings (`make train-yolox`), exported to ONNX and
+    optionally quantised (`make quantise`)."""
     from yolox_onnx import load_yolox
 
-    return load_yolox(device, f"/weights/{run}/yolox_buildings.onnx", ["building"])
+    return load_yolox(device, f"/weights/{run}/yolox_buildings{'_int8' if int8 else ''}.onnx",
+                      ["building"])
 
 
 def load_rfdetr_buildings(device: str, run: str = "rfdetr-spacenet",
@@ -85,4 +87,6 @@ BACKENDS: dict[str, Callable[[str], Backend]] = {
     "yolox-tiny": lambda device: load_yolox_backend(device, "tiny"),
     "rfdetr-buildings": load_rfdetr_buildings, "yolox-buildings": load_yolox_buildings,
     "rfdetr-nano-buildings": lambda d: load_rfdetr_buildings(d, "rfdetr-spacenet-nano", "Nano"),
-    "yolox-tiny-buildings": lambda d: load_yolox_buildings(d, "yolox-spacenet-tiny-416")}
+    "yolox-tiny-buildings": lambda d: load_yolox_buildings(d, "yolox-spacenet-tiny-416"),
+    "yolox-buildings-int8": lambda d: load_yolox_buildings(d, int8=True),
+    "yolox-tiny-buildings-int8": lambda d: load_yolox_buildings(d, "yolox-spacenet-tiny-416", True)}

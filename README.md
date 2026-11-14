@@ -83,7 +83,7 @@ On a machine with an NVIDIA GPU and the NVIDIA container runtime, `make up-gpu` 
 
 CPU throughput: the detector uses `DETECTOR_THREADS` threads per worker (default 4; more was not faster on a 20-thread CPU), and `docker compose up -d --scale detector=2` runs replicas that share the tile stream. With a stub model on real imagery the pipeline went from 13.5 to 33.5 tiles/s with one detector and 48 with two, after the slicer started writing uncompressed PNG tiles and overlapping encode and upload ([ADR-0014](docs/adr/0014-lightweight-cpu-detector.md)). Do not scale the CPU and GPU detectors together.
 
-Lightweight models for CPU use: `yolox-tiny` (ONNX Runtime, 416 px input) and `rfdetr-nano` are enabled by default beside `rfdetr` (the default choice) and `yolox`. Fine-tuned on SpaceNet buildings and run on 4 CPU threads, `yolox-tiny-buildings` reaches 0.56 mAP@.5 against 0.59 for `yolox-buildings` at about a third of the model time, and `rfdetr-nano-buildings` reaches 0.60 against 0.66 for `rfdetr-buildings` in about half. YOLOX-nano was tried and dropped: at 0.47 to 0.51 mAP@.5 it missed the bar. Details in [the SpaceNet report](docs/benchmarks/spacenet-khartoum.md) and [ADR-0014](docs/adr/0014-lightweight-cpu-detector.md).
+Lightweight models for CPU use: `yolox-tiny` (ONNX Runtime, 416 px input) and `rfdetr-nano` are enabled by default beside `rfdetr` (the default choice) and `yolox`. Fine-tuned on SpaceNet buildings and run on 4 CPU threads, `yolox-tiny-buildings` reaches 0.56 mAP@.5 (0.56 as INT8 too, via `make quantise`, which is 1.5x to 2.4x faster again) against 0.59 for `yolox-buildings` at about a third of the model time, and `rfdetr-nano-buildings` reaches 0.60 against 0.66 for `rfdetr-buildings` in about half. YOLOX-nano was tried and dropped: at 0.47 to 0.51 mAP@.5 it missed the bar. All results of the series are on one page: [`docs/benchmarks/lightweight-detector.md`](docs/benchmarks/lightweight-detector.md). Details in [the SpaceNet report](docs/benchmarks/spacenet-khartoum.md) and [ADR-0014](docs/adr/0014-lightweight-cpu-detector.md).
 
 Duplicates across overlapping tiles are removed by class-wise NMS. An object larger than the overlap zone can still be split. Boxes only (no oriented boxes or segmentation).
 
@@ -100,9 +100,11 @@ Duplicates across overlapping tiles are removed by class-wise NMS. An object lar
 | RF-DETR Small, fine-tuned | 0.327 | 0.659 | 0.642 | 0.85 |
 | RF-DETR Nano, fine-tuned | 0.294 | 0.596 | 0.602 | 0.47 |
 | YOLOX-s, fine-tuned | 0.303 | 0.586 | 0.612 | 0.31 |
-| YOLOX-tiny 416, fine-tuned | 0.270 | 0.564 | 0.562 | 0.10 |
+| YOLOX-tiny 416, fine-tuned | 0.270 | 0.564 | 0.562 | 0.09 |
+| YOLOX-tiny 416, INT8 | 0.262 | 0.559 | 0.548 | 0.06 |
+| YOLOX-s, INT8 | 0.293 | 0.573 | 0.588 | 0.12 |
 
-Each 650 px image is cut into 4 overlapping 640 px tiles, so per tile the detector takes about a quarter of the last column. One city and one run per model; details and caveats in [`docs/benchmarks/spacenet-khartoum.md`](docs/benchmarks/spacenet-khartoum.md) and [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md). Enable the models with `DETECTOR_MODELS=stub,rfdetr,yolox,rfdetr-buildings,yolox-buildings,rfdetr-nano-buildings,yolox-tiny-buildings`.
+Each 650 px image is cut into 4 overlapping 640 px tiles, so per tile the detector takes about a quarter of the last column. One city and one run per model; details and caveats in [`docs/benchmarks/spacenet-khartoum.md`](docs/benchmarks/spacenet-khartoum.md) and [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md). Enable the models with `DETECTOR_MODELS=stub,rfdetr,yolox,rfdetr-buildings,yolox-buildings,rfdetr-nano-buildings,yolox-tiny-buildings,yolox-buildings-int8,yolox-tiny-buildings-int8`.
 
 ## GDAL + Python + numpy 2 base images
 

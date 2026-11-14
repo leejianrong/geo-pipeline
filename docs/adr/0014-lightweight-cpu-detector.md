@@ -31,6 +31,10 @@ mAP@[.5:.95] and model time per image: RF-DETR Small 0.566, 0.18 s; RF-DETR Nano
 
 Kept: `yolox-tiny-buildings` (416 px input; mAP@.5 0.564, 3.1x faster than YOLOX-s at 4 threads and 3.8x at 1); the INT8 work in L4 starts from it. Input size: 416 beat 640 for tiny on speed and on mAP@.5. Removed: YOLOX-nano (0.508 and 0.471; recall too low) and YOLOX-tiny at 640 (1.6x faster only), including the nano COCO backend and weights. RF-DETR Nano (0.596, 1.8x faster than RF-DETR Small, but slower than YOLOX-s) fails the speed rule as written against YOLOX-s; it is kept as the small quality-leaning model, pending a decision. Full table: `docs/benchmarks/spacenet-khartoum.md`.
 
+## Measured after L4 (2026-11-14)
+
+INT8 (ORT static QDQ, per-channel, 30 SpaceNet training tiles for calibration) passes the 2-point check: YOLOX-s 0.586 to 0.573 mAP@.5, detect time 0.29 to 0.12 s/img at 4 threads (0.95 to 0.33 at 1); YOLOX-tiny 0.564 to 0.559, 0.09 to 0.06 (0.26 to 0.11). Both are registered as `*-int8` backends. End to end through the pipeline: YOLOX-s 10.8 to 19.4 tiles/s, YOLOX-tiny 21.6 to 27.9.
+
 ## Excluded
 
 | Candidate | Why |
@@ -45,3 +49,7 @@ Kept: `yolox-tiny-buildings` (416 px input; mAP@.5 0.564, 3.1x faster than YOLOX
 - The YOLOX decoder takes its input size and grid from the model instead of a fixed 640.
 - Each shipped model needs a SpaceNet fine-tune, so weights stay out of git (`data/models/`).
 - A second detector image exists after the last slice; both are built in CI.
+
+## Results record
+
+All numbers of this series are collected in `docs/benchmarks/lightweight-detector.md`, with raw results in `docs/benchmarks/lightweight-detector/`.

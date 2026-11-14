@@ -1,4 +1,4 @@
-.PHONY: help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences hooks
+.PHONY: quantise help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
 UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pycocotools --with pytest --with ruff --with fastapi --with httpx
@@ -72,7 +72,13 @@ train-yolox:  ## fine-tune YOLOX (VARIANT=s|tiny, SIZE=640|416) on SpaceNet (GPU
 	  -d 1 -b 16 --fp16 -c /models/yolox_$(or $(VARIANT),s).pth && python export_yolox_onnx.py yolox_exp.py \
 	  /data/models/$(YOLOX_NAME)/best_ckpt.pth /data/models/$(YOLOX_NAME)/yolox_buildings.onnx'
 
-SPACENET_MODELS ?= rfdetr-buildings,yolox-buildings,rfdetr-nano-buildings,yolox-tiny-buildings
+quantise:  ## INT8-quantise a fine-tuned YOLOX (RUN=yolox-spacenet-tiny-416) -> data/models/$(RUN)/yolox_buildings_int8.onnx
+	docker build -q -t geo-train -f train/Dockerfile .
+	docker run --rm -v "$$PWD/data:/data" -v "$$PWD/scripts:/scripts:ro" -v "$$PWD/stages/detector:/app:ro" \
+	  --entrypoint python geo-train /scripts/quantise_onnx.py /data/models/$(RUN)/yolox_buildings.onnx \
+	  /data/models/$(RUN)/yolox_buildings_int8.onnx
+
+SPACENET_MODELS ?= rfdetr-buildings,yolox-buildings,rfdetr-nano-buildings,yolox-tiny-buildings,yolox-buildings-int8,yolox-tiny-buildings-int8
 bench-spacenet: down  ## fine-tuned models on the 30 held-out SpaceNet tiles (THREADS=4, OUT=bench-spacenet); report in data/out/
 	DETECTOR_MODELS=stub,$(SPACENET_MODELS) DETECTOR_THREADS=$(or $(THREADS),4) $(MAKE) up
 	docker compose run --rm --build tools geopipe bench --annotations /data/spacenet/coco/test.json \
