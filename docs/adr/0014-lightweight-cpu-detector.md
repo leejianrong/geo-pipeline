@@ -27,6 +27,10 @@ Stub model, real imagery, 48 tiles: 13.5 tiles/s before; 22.6 with PNG level 0 (
 
 mAP@[.5:.95] and model time per image: RF-DETR Small 0.566, 0.18 s; RF-DETR Nano 0.534, 0.10 s; YOLOX-s 0.440, 0.07 s; YOLOX-tiny 0.348, 0.02 s; YOLOX-nano 0.303, 0.01 s. All five are registered; slice L3 applies the bar on SpaceNet and removes those that miss it. The YOLOX backend reads its input size from the ONNX model.
 
+## Verdict (L3, 2026-11-14, SpaceNet 30 held-out tiles, 4 threads)
+
+Kept: `yolox-tiny-buildings` (416 px input; mAP@.5 0.564, 3.1x faster than YOLOX-s at 4 threads and 3.8x at 1); the INT8 work in L4 starts from it. Input size: 416 beat 640 for tiny on speed and on mAP@.5. Removed: YOLOX-nano (0.508 and 0.471; recall too low) and YOLOX-tiny at 640 (1.6x faster only), including the nano COCO backend and weights. RF-DETR Nano (0.596, 1.8x faster than RF-DETR Small, but slower than YOLOX-s) fails the speed rule as written against YOLOX-s; it is kept as the small quality-leaning model, pending a decision. Full table: `docs/benchmarks/spacenet-khartoum.md`.
+
 ## Excluded
 
 | Candidate | Why |
