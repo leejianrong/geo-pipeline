@@ -2,7 +2,7 @@
 
 ## Open forks
 
-None.
+Lightweight CPU detector (L-series, planning started 2026-11-14): F-L1 to F-L5, see below.
 
 ## Register
 
@@ -52,3 +52,21 @@ None.
 | Measurable success | Q17, SLICES V5 |
 | Security and secrets | Q18, ADR-0008 (tenant isolation, later) |
 | Versioning and migration | Q19 |
+
+## L-series: lightweight CPU detector
+
+Facts measured on this machine (i9-12900H, ORT 1.31 CPU, 4 threads, one 640 px tile, forward pass only): YOLOX-nano 416 px 5.4 ms; YOLOX-tiny 416 px 16.9 ms; YOLOX-s 640 px 64.5 ms; YOLOX-s INT8 (static QDQ, per-channel, 30 calibration tiles) 25.9 ms; RF-DETR Nano 384 px 91 ms in ORT and 86 ms in torch; RF-DETR Small 512 px 181 ms in torch. All cores is not faster than 4. With real imagery and a stub model the whole pipeline runs 13.5 tiles/s: the slicer costs about 72 ms per tile (PNG level 6 encode is 56 ms of that; level 0 is 17 ms), so no model faster than about 75 ms per tile improves end-to-end speed today.
+
+| ID | Question | Status | Answer or default | Landed |
+|----|----------|--------|-------------------|--------|
+| L1 | Candidates to add | ASSUMED | YOLOX-nano, YOLOX-tiny (Apache-2.0, published ONNX, same decoder), RF-DETR Nano (Apache-2.0, same package), INT8 variants of YOLOX | ADR-0014 |
+| L2 | Excluded candidates | ASSUMED | DEIMv2: custom non-commercial licence (read in its LICENSE.md). YOLOv6, 7, 9: GPL. YOLOv10, 11, 12: AGPL. Others (PicoDet, NanoDet, D-FINE, RTMDet): different toolchains, no gain over YOLOX family here; revisit only if the above miss the bar | ADR-0014 |
+| L3 | How candidates are judged | ASSUMED | Existing COCO-200 (zero-shot sanity) and SpaceNet-30 (fine-tuned, decides); mAP@.5, F1, per-tile ms at 1 and 4 threads, end-to-end tiles/s | SLICES L1-L3 |
+| L4 | Threads | ASSUMED | `DETECTOR_THREADS` default 4 (measured: more is not faster); several detector replicas for throughput | SLICES L1 |
+| L5 | Input size | DEFERRED | Nano and tiny are 416 native. Try them at tile size 416 (no downscale) and at 640 (letterbox) and keep the better default, from data | SLICES L2 |
+| L6 | Quantisation method | ASSUMED | ORT static QDQ INT8, calibrated on tiles from the target data; dynamic quantisation does not help convolutions | SLICES L3 |
+| F-L1 | Success bar | OPEN FORK | recommended: see session | |
+| F-L2 | Hardware target | OPEN FORK | recommended: x86-64 only | |
+| F-L3 | Include pipeline overhead fixes | OPEN FORK | recommended: yes, first | |
+| F-L4 | Torch-free ONNX-only detector image | OPEN FORK | recommended: yes, last | |
+| F-L5 | Default model | OPEN FORK | recommended: opt-in | |
