@@ -187,7 +187,7 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 - YOLOX letterbox and decode: boxes map back to original pixel coordinates; NMS and the confidence threshold are applied.
 - Matching and P/R/F1 agree with a hand-computed case; perfect detections score mAP 1.0.
 
-## V5b: SpaceNet benchmark and fine-tune (later)
+## V5b: SpaceNet benchmark and fine-tune (RF-DETR done, YOLOX next)
 
 **Delivers:** R10 on overhead imagery
 

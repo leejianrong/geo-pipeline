@@ -1,5 +1,6 @@
 """Detector backends. A backend is `detect(img_rgb_uint8, conf) -> list[Box]` in tile pixels."""
 
+import os
 from collections.abc import Callable
 
 import numpy as np
@@ -38,11 +39,12 @@ def to_boxes(det) -> list[Box]:
             in zip(det.xyxy, det.confidence, det.class_id, det.data["class_name"], strict=True)]
 
 
-def load_rfdetr(device: str) -> Backend:
+def load_rfdetr(device: str, weights: str | None = None) -> Backend:
     import torch
     from rfdetr import RFDETRSmall  # heavy import, only when this backend is enabled
 
-    model = RFDETRSmall(device=resolve_device(device, torch.cuda.is_available()))
+    model = RFDETRSmall(device=resolve_device(device, torch.cuda.is_available()),
+                        **({"pretrain_weights": weights} if weights else {}))
     return lambda img, conf: to_boxes(model.predict(img, threshold=conf))
 
 
@@ -52,7 +54,14 @@ def load_yolox_backend(device: str) -> Backend:
     return load_yolox(device)
 
 
+def load_rfdetr_buildings(device: str) -> Backend:
+    """RF-DETR Small fine-tuned on SpaceNet buildings (`make train-rfdetr`)."""
+    return load_rfdetr(device, os.environ.get(
+        "RFDETR_BUILDINGS_WEIGHTS", "/weights/rfdetr-spacenet/checkpoint_best_total.pth"))
+
+
 # Factories taking the device, so a backend is only loaded (and its dependencies imported)
 # when enabled.
 BACKENDS: dict[str, Callable[[str], Backend]] = {
-    "stub": lambda device: stub_detect, "rfdetr": load_rfdetr, "yolox": load_yolox_backend}
+    "stub": lambda device: stub_detect, "rfdetr": load_rfdetr, "yolox": load_yolox_backend,
+    "rfdetr-buildings": load_rfdetr_buildings}
