@@ -127,6 +127,10 @@ When actors conflict, the job message schema is the contract and wins over conve
 
 Test through the Valkey/S3 boundary, which is what other services and a future API see. Fixtures are synthetic GeoTIFFs with rectangles at known map coordinates; a stub detector returns those boxes, which isolates the geo math from model quality. Base images are tested by the `verify-gdal` smoke test for each Python version. Real-model and SpaceNet tests are slow and run separately. Per-slice plans are in `SLICES.md`.
 
+## Lightweight CPU detector
+
+A feature series (L1-L5 in `SLICES.md`, decisions in ADR-0014): remove pipeline overhead first, add YOLOX-nano/tiny and RF-DETR Nano as opt-in backends, judge them on SpaceNet against a stated bar, add INT8 variants, and end with a torch-free detector image. RF-DETR Small stays the default. Out of scope: ARM images, new default model, other detector families.
+
 ## Assumed defaults
 
 | ID | Assumed | Cost if wrong |

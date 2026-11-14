@@ -2,7 +2,7 @@
 
 ## Open forks
 
-Lightweight CPU detector (L-series, planning started 2026-11-14): F-L1 to F-L5, see below.
+None. The L-series forks were all answered on 2026-11-14 (accepted recommendations); see below.
 
 ## Register
 
@@ -65,8 +65,8 @@ Facts measured on this machine (i9-12900H, ORT 1.31 CPU, 4 threads, one 640 px t
 | L4 | Threads | ASSUMED | `DETECTOR_THREADS` default 4 (measured: more is not faster); several detector replicas for throughput | SLICES L1 |
 | L5 | Input size | DEFERRED | Nano and tiny are 416 native. Try them at tile size 416 (no downscale) and at 640 (letterbox) and keep the better default, from data | SLICES L2 |
 | L6 | Quantisation method | ASSUMED | ORT static QDQ INT8, calibrated on tiles from the target data; dynamic quantisation does not help convolutions | SLICES L3 |
-| F-L1 | Success bar | OPEN FORK | recommended: see session | |
-| F-L2 | Hardware target | OPEN FORK | recommended: x86-64 only | |
-| F-L3 | Include pipeline overhead fixes | OPEN FORK | recommended: yes, first | |
-| F-L4 | Torch-free ONNX-only detector image | OPEN FORK | recommended: yes, last | |
-| F-L5 | Default model | OPEN FORK | recommended: opt-in | |
+| F-L1 | Success bar | ANSWERED | At least 90% of fine-tuned YOLOX-s SpaceNet mAP@.5 (0.586) at least 2x faster; INT8 within 2 points of its FP32 | ADR-0014 |
+| F-L2 | Hardware target | ANSWERED | x86-64 only; 1 and 4 threads as small-box proxy; ARM deferred | ADR-0014 |
+| F-L3 | Include pipeline overhead fixes | ANSWERED | Yes, slice L1 first | ADR-0014 |
+| F-L4 | Torch-free ONNX-only detector image | ANSWERED | Yes, slice L5 last | ADR-0014 |
+| F-L5 | Default model | ANSWERED | Opt-in "fast" preset; RF-DETR Small stays the default | ADR-0014 |
