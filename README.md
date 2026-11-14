@@ -85,7 +85,14 @@ Duplicates across overlapping tiles are removed by class-wise NMS. An object lar
 
 ### SpaceNet buildings (fine-tuned)
 
-`make spacenet-data` fetches 300 SpaceNet 2 Khartoum tiles (730 MB, CC BY-SA 4.0, kept out of git), `make train-rfdetr` fine-tunes RF-DETR Small on 240 of them on the GPU (about 7 minutes), and `make bench-spacenet` scores the other 30 through the full pipeline: **mAP@.5 0.66, F1 0.64** for the fine-tuned model, where the COCO weights score 0 because they have no building class. One city and one run; details and caveats in [`docs/benchmarks/spacenet-khartoum.md`](docs/benchmarks/spacenet-khartoum.md) and [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md). Enable the model with `DETECTOR_MODELS=stub,rfdetr,yolox,rfdetr-buildings`.
+`make spacenet-data` fetches 300 SpaceNet 2 Khartoum tiles (730 MB, CC BY-SA 4.0, kept out of git), `make train-rfdetr` and `make train-yolox` fine-tune on 240 of them on the GPU (about 7 and 12 minutes), and `make bench-spacenet` scores the other 30 through the full pipeline. The COCO weights score 0 here because they have no building class.
+
+| model | mAP@[.5:.95] | mAP@.5 | F1@.5 | detector s/tile (CPU) |
+|---|---|---|---|---|
+| RF-DETR Small, fine-tuned | 0.327 | 0.659 | 0.642 | 0.85 |
+| YOLOX-s, fine-tuned | 0.303 | 0.586 | 0.612 | 0.31 |
+
+One city and one run per model; details and caveats in [`docs/benchmarks/spacenet-khartoum.md`](docs/benchmarks/spacenet-khartoum.md) and [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md). Enable the models with `DETECTOR_MODELS=stub,rfdetr,yolox,rfdetr-buildings,yolox-buildings`.
 
 ## GDAL + Python + numpy 2 base images
 
@@ -102,7 +109,7 @@ Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (ever
 
 ## Status and roadmap
 
-Slices V1-V7 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark, an HTTP API and a GPU detector. Next are a SpaceNet benchmark with fine-tuned weights, and a web frontend; see a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
+Slices V1-V7 and V5b are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark, an HTTP API and a GPU detector. The web frontend is next; see a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
 
 ## Contributing
 

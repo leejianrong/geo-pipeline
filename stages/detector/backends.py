@@ -54,6 +54,14 @@ def load_yolox_backend(device: str) -> Backend:
     return load_yolox(device)
 
 
+def load_yolox_buildings(device: str) -> Backend:
+    """YOLOX-s fine-tuned on SpaceNet buildings (`make train-yolox`), exported to ONNX."""
+    from yolox_onnx import load_yolox
+
+    return load_yolox(device, os.environ.get(
+        "YOLOX_BUILDINGS_ONNX", "/weights/yolox-spacenet/yolox_buildings.onnx"), ["building"])
+
+
 def load_rfdetr_buildings(device: str) -> Backend:
     """RF-DETR Small fine-tuned on SpaceNet buildings (`make train-rfdetr`)."""
     return load_rfdetr(device, os.environ.get(
@@ -64,4 +72,4 @@ def load_rfdetr_buildings(device: str) -> Backend:
 # when enabled.
 BACKENDS: dict[str, Callable[[str], Backend]] = {
     "stub": lambda device: stub_detect, "rfdetr": load_rfdetr, "yolox": load_yolox_backend,
-    "rfdetr-buildings": load_rfdetr_buildings}
+    "rfdetr-buildings": load_rfdetr_buildings, "yolox-buildings": load_yolox_buildings}

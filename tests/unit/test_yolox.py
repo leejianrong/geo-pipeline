@@ -67,3 +67,10 @@ def test_nms_removes_same_class_duplicates_but_keeps_other_classes_and_applies_t
 def test_class_names_match_cocos_80_categories_in_order():
     cats = json.loads((FIXTURES / "coco_mini.json").read_text())["categories"]
     assert [c["name"] for c in sorted(cats, key=lambda c: c["id"])] == COCO80
+
+
+def test_single_class_head_uses_the_given_names():
+    raw = np.zeros((1, 8400, 6), np.float32)  # fine-tuned model: 4 box values, objectness, 1 class
+    raw[0, 20 * 80 + 10] = (0.5, 0.5, np.log(5), np.log(5), 0.9, 0.8)
+    [box] = yolox_boxes(raw, ratio=1.0, shape=(640, 640), conf=0.25, names=["building"])
+    assert (box.class_id, box.class_name) == (0, "building")
