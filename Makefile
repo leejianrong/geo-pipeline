@@ -96,10 +96,12 @@ quantise:  ## INT8-quantise a fine-tuned YOLOX (RUN=yolox-spacenet-tiny-416) -> 
 	  /data/models/$(RUN)/yolox_buildings_int8.onnx
 
 SPACENET_MODELS ?= rfdetr-buildings,yolox-buildings,rfdetr-nano-buildings,yolox-tiny-buildings,yolox-buildings-int8,yolox-tiny-buildings-int8
-bench-spacenet: down  ## fine-tuned models on the 30 held-out SpaceNet tiles (THREADS=4, OUT=bench-spacenet); report in data/out/
+bench-spacenet: down  ## fine-tuned models on the 30 held-out SpaceNet tiles (THREADS=4, OUT=bench-spacenet); report in data/out/, runs and models registered for the studio
 	DETECTOR_MODELS=stub,$(SPACENET_MODELS) DETECTOR_THREADS=$(or $(THREADS),4) $(MAKE) up
-	docker compose run --rm --build tools geopipe bench --annotations /data/spacenet/coco/test.json \
+	docker compose run --rm --build tools geopipe register-builtin /data/spacenet/coco
+	docker compose run --rm tools geopipe bench --annotations /data/spacenet/coco/test.json \
 	  --images /data/spacenet/AOI_5_Khartoum/PS-RGB --models $(SPACENET_MODELS) --limit 30 \
+	  --dataset-id spacenet-khartoum --split test \
 	  --out /data/out/$(or $(OUT),bench-spacenet) --title "SpaceNet Khartoum: 30 held-out tiles, $(or $(THREADS),4) CPU threads" \
 	  --caveat "One city (Khartoum); the models were fine-tuned on 240 tiles of the same city, so this does not show generalisation to other places."
 

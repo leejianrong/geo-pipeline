@@ -184,3 +184,93 @@ def test_the_shared_namespace_cannot_be_a_tenant():
 
 def test_requests_need_a_key(world):
     assert api(*world[:2]).get("/datasets").status_code == 401
+
+
+def feature(box, score):
+    x1, y1, x2, y2 = box
+    return {
+        "properties": {"class_name": "building", "pixel_bbox": [x1, y1, x2, y2], "score": score}
+    }
+
+
+def test_a_saved_run_rescores_to_its_saved_metrics():
+    from geopipe import bench
+
+    gt = {
+        "images": [
+            {"id": 1, "file_name": "a.png", "width": 100, "height": 100},
+            {"id": 2, "file_name": "b.png", "width": 100, "height": 100},
+        ],
+        "annotations": [
+            {
+                "id": 1,
+                "image_id": 1,
+                "category_id": 1,
+                "bbox": [10, 10, 20, 20],
+                "iscrowd": 0,
+                "area": 400,
+            },
+            {
+                "id": 2,
+                "image_id": 1,
+                "category_id": 1,
+                "bbox": [60, 60, 20, 20],
+                "iscrowd": 0,
+                "area": 400,
+            },
+            {
+                "id": 3,
+                "image_id": 2,
+                "category_id": 1,
+                "bbox": [5, 5, 30, 30],
+                "iscrowd": 0,
+                "area": 900,
+            },
+        ],
+        "categories": [{"id": 1, "name": "building"}],
+    }
+    runs = {
+        1: {
+            "features": [feature([10, 10, 30, 30], 0.9), feature([0, 70, 15, 90], 0.6)],
+            "latency": 0.2,
+            "detect_seconds": 0.1,
+        },
+        2: {"features": [feature([6, 6, 34, 36], 0.8)], "latency": 0.3, "detect_seconds": 0.2},
+    }
+    scored = bench.score_model(gt, {"building": 1}, runs, [1, 2])
+    dets = [
+        d for i in (1, 2) for d in bench.to_coco_detections(i, runs[i]["features"], {"building": 1})
+    ]
+    s3, r = FakeS3(), FakeValkey()
+    run_id = bench.save_run(r, s3, "yolox-tiny-buildings", "demo", "test", scored, dets, 0.05, 0.65)
+
+    base = f"shared/runs/{run_id}"
+    saved = json.loads(s3.objects[(bench.BUCKET, f"{base}/results.json")])
+    again = bench.evaluate(
+        gt, json.loads(s3.objects[(bench.BUCKET, f"{base}/predictions.json")]), [1, 2]
+    )
+    assert again["map50"] == pytest.approx(saved["map50"]) and saved["map50"] > 0
+    assert again["pr_precision"] == saved["pr_precision"] and len(saved["pr_recall"]) == 101
+    manifest = registry.RunManifest.model_validate_json(
+        s3.objects[(bench.BUCKET, f"{base}/manifest.json")]
+    )
+    assert manifest.scorer == "pipeline" and manifest.metrics["map50"] == saved["map50"]
+    assert manifest.metrics["detections"] == 3 and r.zrange("runs:shared", 0, -1) == [run_id]
+
+
+def test_builtin_models_are_registered_and_all_name_real_detector_backends():
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).parents[2] / "stages" / "detector"))
+    from backends import BACKENDS
+
+    s3, r = FakeS3(), FakeValkey()
+    ids = registry.register_builtin_models(s3, r, BUCKET, "spacenet-khartoum", now=lambda: 5.0)
+    assert len(ids) == 6 and r.zrange("models:shared", 0, -1) == ids
+    for model_id in ids:
+        m = registry.ModelManifest.model_validate_json(
+            s3.objects[(BUCKET, f"shared/models/{model_id}/manifest.json")]
+        )
+        assert m.backend in BACKENDS and m.trained_on == "spacenet-khartoum"
+        assert m.classes == ["building"] and m.licence
