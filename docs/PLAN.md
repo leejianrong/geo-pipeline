@@ -131,6 +131,43 @@ Test through the Valkey/S3 boundary, which is what other services and a future A
 
 A feature series (L1-L5 in `SLICES.md`, decisions in ADR-0014): remove pipeline overhead first, add YOLOX-nano/tiny and RF-DETR Nano as opt-in backends, judge them on SpaceNet against a stated bar, add INT8 variants, and end with a torch-free detector image. RF-DETR Small stays the default. Out of scope: ARM images, new default model, other detector families.
 
+## Studio: explore, bring your own, fine-tune, benchmark
+
+**Problem.** The models we trained are only visible as tables in the docs, and trying a different dataset or model means editing scripts and running `docker run` commands by hand.
+
+**Solution.** A studio in the existing indah frontend (ADR-0015) with two halves. *Explore*: browse a dataset's images with ground-truth boxes, pick a model trained on it, see its metrics, PR curve and its predicted boxes against the ground truth on each image. *Train*: upload your own dataset (COCO) and/or ONNX model, fine-tune a preset on a GPU worker (ADR-0016), run a benchmark on any split, and compare models. The built-in SpaceNet Khartoum dataset and the fine-tuned models from ADR-0014 are the first things you can explore.
+
+**Users.** First, the owner and small teams running it locally; the contracts are tenant-scoped so a hosted service is possible later. Agents use the same API; the browser is one client.
+
+**Scope boundary.** In: COCO datasets, single class, axis-aligned boxes; ONNX models with a YOLOX or RF-DETR layout; four fine-tune presets; in-process benchmarks; explore views. Out: labelling or annotation editing, segmentation, multi-class training UI, raw hyperparameters, `.pth` uploads (ADR-0017), remote GPUs, public hosting, rate limits and billing, ARM.
+
+**Requirements**
+
+| ID | Requirement | Slice |
+|----|-------------|-------|
+| RS1 | Browse a registered dataset by split with ground-truth boxes, attribution visible | S1 |
+| RS2 | See a model's metrics, PR curve and predicted against ground-truth boxes per image | S2 |
+| RS3 | Upload a COCO dataset up to 5 GB straight to the store, with a validation report | S0, S3 |
+| RS4 | Fine-tune a preset on a chosen dataset from the browser with live progress; the result is a registered ONNX model | S4 |
+| RS5 | Run a registered model on a raster from the Detect tab | S5 |
+| RS6 | Upload an ONNX model safely and benchmark any model on any dataset split, with the same metrics as the CLI | S6 |
+| RS7 | Delete things, enforce limits, and have a browser smoke test in CI | S7 |
+| RS8 | Tenants never see each other's datasets, models or runs; nothing uploaded is unpickled | all |
+
+**Shape.** Three new pieces: API routers for datasets, models and runs; a `trainer` stage consuming `ingest`, `train` and `bench` (ADR-0016); and an on-demand `user:<id>` loader in the detector (ADR-0017). State is JSON manifests in the object store under `tenants/<tid>/...` and `shared/...`, listed through Valkey sorted sets. The frontend is a client of the API only (ADR-0015).
+
+**Testing approach.** As elsewhere, through the Valkey and S3 boundary and the indah session dispatch path. The trainer takes its training function as a seam, so CI exercises the whole flow with a fake trainer that registers a stored ONNX file; real training runs are slow, need the GPU, and are run by hand with their numbers recorded in `docs/benchmarks/`.
+
+**Assumed defaults (studio)**
+
+| ID | Assumed | Cost if wrong |
+|----|---------|---------------|
+| S-A1 | A dataset without split folders is split 80/10/10 by sorted file name; Roboflow-style `train/valid/test` folders are used as given | Users with their own split see a different one; a manifest field would override |
+| S-A2 | Presets, not hyperparameters | Power users ask for raw settings; a later "advanced" panel |
+| S-A3 | Per-image predictions are saved with every benchmark run | Storage grows; they can be dropped for old runs |
+| S-A4 | Limits: dataset 5 GB and 20,000 images, model 500 MB, one active training per tenant | Tune in config |
+| S-A5 | Local-only, trusted network; no rate limits | Needs the hosting milestone before any public exposure |
+
 ## Assumed defaults
 
 | ID | Assumed | Cost if wrong |

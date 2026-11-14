@@ -385,3 +385,165 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 
 #### Unit
 - The model card renders with the licence, attribution and every metric from `results.json`; the script refuses a model that is not marked as passing.
+
+# Studio series (ADR-0015, ADR-0016, ADR-0017)
+
+Requirements RS1 to RS8 are in `PLAN.md`. Order: the riskiest unknown first (S0), then read-only Explore, then upload, training, user models. Real training runs need the GPU and are not in CI; CI uses a fake trainer behind a seam.
+
+## S0: Spike: direct browser upload to the store
+
+**Delivers:** the decision for RS3: CORS plus presigned PUT, or streaming through the frontend
+
+**Build plan:** configure CORS on the SeaweedFS S3 endpoint (or find out it cannot); a throwaway page that PUTs a 300 MB file to a presigned URL from a real browser; measure the browser and frontend memory; record the result and the chosen path in ADR-0015.
+
+**Demo:** a 300 MB file is in the store, uploaded from a browser, with the frontend process's memory growth under 100 MB; or a written reason and the working fallback.
+
+**Rests on assumptions:** SeaweedFS supports bucket CORS for browser PUTs (unverified).
+
+### Test plan
+
+#### End-to-end
+- A browser (Playwright) uploads 300 MB to a presigned URL; the object's size and checksum match.
+
+#### Integration
+- The same upload from a different origin fails without the CORS rule and succeeds with it.
+
+#### Unit
+- None (a spike); the result is a paragraph in ADR-0015.
+
+## S1: Explore a dataset
+
+**Delivers:** RS1, and registry v0 (datasets)
+
+**Build plan:** dataset manifests (ADR-0016) and `geopipe register-builtin`, which copies the SpaceNet COCO files and images to `shared/datasets/spacenet-khartoum/` with thumbnails and licence and attribution text; API `GET /datasets`, `/datasets/{id}`, `/datasets/{id}/images?split&page`, image and annotation endpoints, tenant and `shared/` visibility rules; statistics in `geopipe.viewer` (boxes per image, box size distribution); the Explore tab with dataset select, split filter, `Gallery`, `ImageOverlay` with ground-truth boxes, two charts, attribution banner. Split `stages/frontend/app.py` per tab.
+
+**Demo:** open Explore, pick SpaceNet Khartoum, filter to the test split (30 images), click one and see its ground-truth boxes with the CC BY-SA attribution on screen.
+
+**Rests on assumptions:** S-A1 (split rule), S-A5 (local-only).
+
+### Test plan
+
+#### End-to-end
+- Through the indah session path: with a small fixture dataset registered, the gallery lists the right number of images per split and a selected image shows exactly its annotation count of boxes.
+
+#### Integration
+- Tenant B cannot list or fetch tenant A's dataset; both can read `shared/`; no tenant key can write or address `shared/`.
+
+#### Unit
+- Statistics functions on a fixture; manifest schema validation rejects a missing licence field.
+
+## S2: Explore a model and its results
+
+**Delivers:** RS2
+
+**Build plan:** `geopipe bench` writes `results.json` and `predictions.json` per run (S-A3; the in-process scorer arrives in S6); `register-builtin` also registers the fine-tuned models of ADR-0014 with their metrics; API for models and runs; the Explore model view: model select, `Stat` cards (mAP, F1, speed), PR curve, and a results view with ground truth against predictions on each image, a score slider, per-image true and false positives and misses, and a worst-images list. Say whether a number came from the pipeline or the in-process scorer (ADR-0017).
+
+**Demo:** pick yolox-tiny-buildings, see mAP@.5 0.564 and open its worst test tile with predicted and true boxes overlaid.
+
+### Test plan
+
+#### End-to-end
+- The metrics shown equal `docs/benchmarks/lightweight-detector/` values to 3 decimals; the boxes drawn at a score threshold match `filter_features`.
+
+#### Integration
+- Rescoring a saved `predictions.json` reproduces the saved metrics.
+
+#### Unit
+- Per-image TP/FP/FN counting and PR-curve points on a fixture.
+
+## S3: Upload a dataset
+
+**Delivers:** RS3
+
+**Build plan:** the direct-upload indah component and `POST /uploads/dataset` (presigned PUT, per S0); `POST /datasets` queues an `IngestJob`; the `trainer` stage (small image, introduced here with only the ingest handler) unzips safely, detects Roboflow-style splits or applies S-A1, validates the COCO file (missing images, boxes outside the image, empty images, duplicate names, class list), writes thumbnails, annotations and the manifest, and reports; the Train tab's dataset form (name, licence, attribution) and a validation report view.
+
+**Demo:** upload the 730 MB SpaceNet zip in a browser; the frontend's memory growth stays under 100 MB; the validation report appears; the dataset is in Explore.
+
+**Rests on assumptions:** S-A1, S-A4.
+
+### Test plan
+
+#### End-to-end
+- A generated zip through the API becomes a ready dataset; zips with path traversal, a size bomb, a missing image or an invalid COCO file are rejected with a report naming the problem.
+
+#### Integration
+- Slow: a 300 MB upload leaves the frontend process's memory growth under 100 MB.
+
+#### Unit
+- COCO validator, zip guards, split detection.
+
+## S4: Fine-tune from the browser
+
+**Delivers:** RS4
+
+**Build plan:** `stages/trainer` with its small CPU image (ingest and bench, built in CI) and the GPU variant (training, `compose.gpu.yaml`); `TrainJob`; the four presets; one active training per tenant; progress (epoch, validation AP) parsed into the run status; cancel; ONNX export and model registration at the end; the Train tab: dataset, preset, epochs, start, `Steps` and `Progress`, a live loss chart, run history. The training function is a seam; no GPU means an explicit failure.
+
+**Demo:** in the browser, fine-tune the `fast` preset on the 240-tile SpaceNet split; the run ends with a registered model that shows up in Explore.
+
+### Test plan
+
+#### End-to-end
+- CI: with a fake trainer the whole flow (start, progress, finish, model registered) works through the UI session path. By hand on the GPU: `fast` on the SpaceNet split reaches mAP@.5 within 0.03 of 0.564, and the number is recorded in `docs/benchmarks/`.
+
+#### Integration
+- On a host with no GPU a train job fails at once with the explicit message; a second job from the same tenant waits; cancel stops the run and frees the slot.
+
+#### Unit
+- Preset table; training-log parser.
+
+## S5: Run any registered model on a raster
+
+**Delivers:** RS5
+
+**Build plan:** `user:<id>` loader in the detector with an LRU of 3 and the tenant ownership check (ADR-0017), working on both detector images; the Detect tab's model list reads the registry.
+
+**Demo:** run a job in the Detect tab with the model trained in S4 and see its boxes.
+
+### Test plan
+
+#### End-to-end
+- A job with `user:<id>` for a registered model completes; a different tenant naming it fails with a clear permanent error.
+
+#### Integration
+- A fourth user model evicts the least recently used one; an unknown id fails clearly and is not retried.
+
+#### Unit
+- Name parsing and the ownership rule.
+
+## S6: Bring your own model, and benchmark
+
+**Delivers:** RS6
+
+**Build plan:** model upload through the direct-upload component with a declared decoder and class names; ONNX validation (parses, no external-data tensors, shapes match the decoder, at most 500 MB, session built from bytes); `BenchJob` handled in process by the trainer stage using the same decoders, NMS and `score_model`; the Train tab's Benchmark section (models by dataset and split, comparison table); results open in the S2 view.
+
+**Demo:** upload the repo's fine-tuned YOLOX-s ONNX, benchmark it on the SpaceNet test split, and see mAP@.5 of 0.586 (the CLI number).
+
+### Test plan
+
+#### End-to-end
+- The built-in YOLOX-s ONNX uploaded as a user model benchmarks within 0.003 of the registered backend's mAP@.5; an ONNX file with external data, and one with the wrong output shape for its declared decoder, are rejected with messages.
+
+#### Integration
+- A benchmark run's predictions open in the Explore results view.
+
+#### Unit
+- ONNX validator; the in-process scorer equals `score_model` on fixture predictions.
+
+## S7: Delete, limits, and a browser test in CI
+
+**Delivers:** RS7
+
+**Build plan:** delete datasets, models and runs with reference checks (a dataset in use by a running job cannot be deleted); quotas and per-upload limits enforced when the presigned URL is issued; a Playwright smoke test of the studio in CI (sign in, open Explore, see boxes), which also closes the "browser test in CI" loose end.
+
+**Demo:** deleting a dataset removes its objects and listing entries; an upload over the limit is refused before any bytes are sent.
+
+### Test plan
+
+#### End-to-end
+- CI browser test: sign in, open Explore on a fixture dataset, boxes are visible.
+
+#### Integration
+- Delete removes the objects and the Valkey entries; over-limit presign requests are refused.
+
+#### Unit
+- Reference checks and quota arithmetic.

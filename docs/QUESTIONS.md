@@ -71,3 +71,27 @@ Facts measured on this machine (i9-12900H, ORT 1.31 CPU, 4 threads, one 640 px t
 | F-L4 | Torch-free ONNX-only detector image | ANSWERED | Yes, slice L5 last | ADR-0014 |
 | F-L5 | Default model | ANSWERED | Opt-in "fast" preset; RF-DETR Small stays the default | ADR-0014 |
 | L7 | Where and how to publish the fine-tuned weights | ANSWERED (user, 2026-11-14) | Hugging Face for weights, GitHub for code; CC BY-SA 4.0 with SpaceNet attribution; only models passing the bar | ADR-0014, SLICES L6 |
+
+## S-series: studio (explore, bring your own, fine-tune, benchmark)
+
+Planning 2026-11-15. Facts checked: indah 0.13.0 ships `Tabs`, `Gallery`, `Chart`, `Plot`, `Heatmap`, `MasterDetail`, `SplitPane`, `Stat`, `Steps`, `Upload`, `Progress`, `ImageOverlay` and `CustomComponent`; the frontend's `Upload` buffers in memory and is capped at 200 MB (ADR-0013) while the SpaceNet subset alone is 730 MB; training is a hand-run `docker run`; `geopipe bench` does not save per-image predictions; the detector loads backends from an environment list at startup.
+
+| ID | Question | Status | Answer or default | Landed |
+|----|----------|--------|-------------------|--------|
+| F-S1 | Which dataset format can users bring | ANSWERED (accepted recommendation) | COCO JSON plus images as a zip, single class, with a validation report; YOLO txt and GeoTIFF plus footprints later as converters | ADR-0015, S3 |
+| F-S2 | Where fine-tuning runs | ANSWERED | A `trainer` stage on the bus, on this GPU, one job at a time; no CPU fallback; remote GPUs later behind the same messages | ADR-0016, S4 |
+| F-S3 | Which model files and how they are treated | ANSWERED | ONNX only with a declared decoder; fine-tune only from our bases; never unpickle an upload | ADR-0017, S6 |
+| F-S4 | How user models run in the pipeline | ANSWERED | `user:<id>` loaded on demand with an LRU of 3, ONNX only; benchmarks scored in process | ADR-0017, S5, S6 |
+| F-S5 | Where registry state lives | ANSWERED | JSON manifests in the store plus Valkey index; Postgres with GEO-41 | ADR-0016, S1 |
+| F-S6 | Labelling in scope | ANSWERED | No | ADR-0015 |
+| F-S7 | Large uploads | ANSWERED | Direct browser to store, custom indah component, spike first | ADR-0015, S0, S3 |
+| S1 | Single class and axis-aligned boxes only | ASSUMED | Matches every trainer and the benchmark; multi-class later needs per-class metrics | PLAN scope |
+| S2 | Train presets, not hyperparameters (S-A2) | ASSUMED | `fast`, `balanced`, `accurate`, `best` from ADR-0014's recipes | ADR-0016 |
+| S3 | Limits (S-A4) | ASSUMED | 5 GB and 20,000 images per dataset, 500 MB per model, one active training per tenant | ADR-0017, S7 |
+| S4 | Split rule (S-A1) | ASSUMED | Roboflow-style folders as given, else 80/10/10 by sorted name | S3 |
+| S5 | Security of uploads | ASSUMED | Zip guards, ONNX without external data, session from bytes, image-size guard; no public exposure | ADR-0017 |
+| S6 | Public hosting, rate limits, GPU abuse | DEFERRED | Separate hosting milestone | PLAN out of scope |
+| S7 | Remote GPU workers (RunPod) | DEFERRED | Same messages, later | ADR-0016 |
+| S8 | Postgres registry | DEFERRED | With GEO-41 | ADR-0016 |
+| S9 | Does SeaweedFS support bucket CORS for browser PUTs | OPEN, resolved by S0 | Unverified; fallback is streaming through the frontend | ADR-0015, S0 |
+| S10 | Licences of new dependencies (onnx, Playwright, pycocotools in the trainer image) | ASSUMED | All Apache-2.0 or BSD from memory; each is checked by `make licences` and the PyPI metadata in the slice that adds it | S3, S7 |
