@@ -28,6 +28,7 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 - Test through the Valkey/S3 boundary. Update README, `docs/` and this file in the same PR as the change.
 
 ## Traps that already cost time
+- Browser uploads to presigned URLs need a CORS rule on the bucket (`store.allow_browser_uploads`, set by the API from `GEOPIPE_BROWSER_ORIGINS`); without a rule SeaweedFS accepts any origin. Check them with `scripts/browser_upload_check.py <MB>` (a real file through a file input, not a Blob; the snap Chromium cannot read `/tmp`).
 - Presigned URLs must use SigV4 (`store.client` sets it; SeaweedFS rejects boto3's default v2) and are signed for `S3_PUBLIC_ENDPOINT`, so tests inside compose send a `Host: localhost:8333` header.
 - GDAL's Python bindings must match libgdal exactly. Do not base on the official `ghcr.io/osgeo/gdal` Ubuntu images: their 3.11/3.12 bindings are compiled against numpy 1.x and fail to import with numpy 2, and no official image has Python 3.13.
 - A GDAL dataset must be released (`ds = None`) before its file is uploaded or read; until then the GeoTIFF is incomplete on disk.

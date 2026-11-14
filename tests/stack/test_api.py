@@ -72,3 +72,21 @@ def test_submit_before_upload_is_404():
     _, body = call("POST", f"{API}/uploads", "dev-key-a")
     status, _ = call("POST", f"{API}/jobs", "dev-key-a", {"key": json.loads(body)["key"]})
     assert status == 404
+
+
+def test_browser_uploads_are_allowed_from_the_frontend_origin_only():
+    status, body = call("POST", f"{API}/uploads", "dev-key-a")
+    assert status == 200
+    url = json.loads(body)["upload_url"].replace(PUBLIC_HOST, "seaweedfs:8333")
+
+    def preflight(origin):
+        req = urllib.request.Request(url, method="OPTIONS", headers={
+            "Origin": origin, "Access-Control-Request-Method": "PUT", "Host": PUBLIC_HOST})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return resp.status, resp.headers.get("Access-Control-Allow-Origin")
+        except urllib.error.HTTPError as e:
+            return e.code, e.headers.get("Access-Control-Allow-Origin")
+
+    assert preflight("http://localhost:8080") == (200, "http://localhost:8080")
+    assert preflight("http://evil.example") == (403, None)

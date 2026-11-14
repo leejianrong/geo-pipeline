@@ -104,6 +104,8 @@ def app_from_env() -> FastAPI:  # `uvicorn geopipe.api:app_from_env --factory`
     s3 = store.client()
     bucket = os.environ.get("GEOPIPE_BUCKET", "imagery")
     store.ensure_bucket(s3, bucket)
+    origins = os.environ.get("GEOPIPE_BROWSER_ORIGINS", "http://localhost:8080,http://127.0.0.1:8080")
+    store.allow_browser_uploads(s3, bucket, origins.split(","))
     public = store.client(os.environ.get("S3_PUBLIC_ENDPOINT"))
     return create_app(bus.connect(), s3, public, bucket,
                       parse_keys(os.environ["GEOPIPE_API_KEYS"]))
