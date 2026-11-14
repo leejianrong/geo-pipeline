@@ -83,7 +83,7 @@ On a machine with an NVIDIA GPU and the NVIDIA container runtime, `make up-gpu` 
 
 CPU throughput: the detector uses `DETECTOR_THREADS` threads per worker (default 4; more was not faster on a 20-thread CPU), and `docker compose up -d --scale detector=2` runs replicas that share the tile stream. With a stub model on real imagery the pipeline went from 13.5 to 33.5 tiles/s with one detector and 48 with two, after the slicer started writing uncompressed PNG tiles and overlapping encode and upload ([ADR-0014](docs/adr/0014-lightweight-cpu-detector.md)). Do not scale the CPU and GPU detectors together.
 
-Lightweight models for CPU use: `yolox-tiny`, `yolox-nano` (ONNX Runtime, 416 px input) and `rfdetr-nano` are enabled by default beside `rfdetr` (the default choice) and `yolox`. On 200 COCO images, `rfdetr-nano` keeps most of RF-DETR Small's accuracy (mAP@.5 0.71 against 0.75) at about 1.8x the speed, while `yolox-tiny` and `yolox-nano` are 3.5x and 7x faster than `yolox` but lose 0.09 and 0.14 mAP@[.5:.95] ([report](docs/benchmarks/coco-val-200.md)). COCO is a sanity check only: which of them ship is decided on SpaceNet fine-tunes (slice L3 in [`docs/SLICES.md`](docs/SLICES.md)).
+Lightweight models for CPU use: `yolox-tiny` (ONNX Runtime, 416 px input) and `rfdetr-nano` are enabled by default beside `rfdetr` (the default choice) and `yolox`. Fine-tuned on SpaceNet buildings and run on 4 CPU threads, `yolox-tiny-buildings` reaches 0.56 mAP@.5 against 0.59 for `yolox-buildings` at about a third of the model time, and `rfdetr-nano-buildings` reaches 0.60 against 0.66 for `rfdetr-buildings` in about half. YOLOX-nano was tried and dropped: at 0.47 to 0.51 mAP@.5 it missed the bar. Details in [the SpaceNet report](docs/benchmarks/spacenet-khartoum.md) and [ADR-0014](docs/adr/0014-lightweight-cpu-detector.md).
 
 Duplicates across overlapping tiles are removed by class-wise NMS. An object larger than the overlap zone can still be split. Boxes only (no oriented boxes or segmentation).
 
@@ -93,14 +93,16 @@ Duplicates across overlapping tiles are removed by class-wise NMS. An object lar
 
 ### SpaceNet buildings (fine-tuned)
 
-`make spacenet-data` fetches 300 SpaceNet 2 Khartoum tiles (730 MB, CC BY-SA 4.0, kept out of git), `make train-rfdetr` and `make train-yolox` fine-tune on 240 of them on the GPU (about 7 and 12 minutes), and `make bench-spacenet` scores the other 30 through the full pipeline. The COCO weights score 0 here because they have no building class.
+`make spacenet-data` fetches 300 SpaceNet 2 Khartoum tiles (730 MB, CC BY-SA 4.0, kept out of git), `make train-rfdetr` and `make train-yolox` (`VARIANT=` picks the model size) fine-tune on 240 of them on the GPU (about 7 and 12 minutes), and `make bench-spacenet` scores the other 30 through the full pipeline. The COCO weights score 0 here because they have no building class.
 
-| model | mAP@[.5:.95] | mAP@.5 | F1@.5 | detector s/image (CPU) |
+| model | mAP@[.5:.95] | mAP@.5 | F1@.5 | detector s/image (CPU, 4 threads) |
 |---|---|---|---|---|
 | RF-DETR Small, fine-tuned | 0.327 | 0.659 | 0.642 | 0.85 |
+| RF-DETR Nano, fine-tuned | 0.294 | 0.596 | 0.602 | 0.47 |
 | YOLOX-s, fine-tuned | 0.303 | 0.586 | 0.612 | 0.31 |
+| YOLOX-tiny 416, fine-tuned | 0.270 | 0.564 | 0.562 | 0.10 |
 
-Each 650 px image is cut into 4 overlapping 640 px tiles, so per tile the detector takes about a quarter of the last column. One city and one run per model; details and caveats in [`docs/benchmarks/spacenet-khartoum.md`](docs/benchmarks/spacenet-khartoum.md) and [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md). Enable the models with `DETECTOR_MODELS=stub,rfdetr,yolox,rfdetr-buildings,yolox-buildings`.
+Each 650 px image is cut into 4 overlapping 640 px tiles, so per tile the detector takes about a quarter of the last column. One city and one run per model; details and caveats in [`docs/benchmarks/spacenet-khartoum.md`](docs/benchmarks/spacenet-khartoum.md) and [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md). Enable the models with `DETECTOR_MODELS=stub,rfdetr,yolox,rfdetr-buildings,yolox-buildings,rfdetr-nano-buildings,yolox-tiny-buildings`.
 
 ## GDAL + Python + numpy 2 base images
 

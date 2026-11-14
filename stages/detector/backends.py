@@ -64,18 +64,17 @@ def load_yolox_backend(device: str, variant: str = "s") -> Backend:
     return load_yolox(device, f"/models/yolox_{variant}.onnx")
 
 
-def load_yolox_buildings(device: str) -> Backend:
-    """YOLOX-s fine-tuned on SpaceNet buildings (`make train-yolox`), exported to ONNX."""
+def load_yolox_buildings(device: str, run: str = "yolox-spacenet") -> Backend:
+    """A YOLOX fine-tuned on SpaceNet buildings (`make train-yolox`), exported to ONNX."""
     from yolox_onnx import load_yolox
 
-    return load_yolox(device, os.environ.get(
-        "YOLOX_BUILDINGS_ONNX", "/weights/yolox-spacenet/yolox_buildings.onnx"), ["building"])
+    return load_yolox(device, f"/weights/{run}/yolox_buildings.onnx", ["building"])
 
 
-def load_rfdetr_buildings(device: str) -> Backend:
-    """RF-DETR Small fine-tuned on SpaceNet buildings (`make train-rfdetr`)."""
-    return load_rfdetr(device, os.environ.get(
-        "RFDETR_BUILDINGS_WEIGHTS", "/weights/rfdetr-spacenet/checkpoint_best_total.pth"))
+def load_rfdetr_buildings(device: str, run: str = "rfdetr-spacenet",
+                          size: str = "Small") -> Backend:
+    """An RF-DETR fine-tuned on SpaceNet buildings (`make train-rfdetr`)."""
+    return load_rfdetr(device, f"/weights/{run}/checkpoint_best_total.pth", size)
 
 
 # Factories taking the device, so a backend is only loaded (and its dependencies imported)
@@ -83,6 +82,7 @@ def load_rfdetr_buildings(device: str) -> Backend:
 BACKENDS: dict[str, Callable[[str], Backend]] = {
     "stub": lambda device: stub_detect, "rfdetr": load_rfdetr, "yolox": load_yolox_backend,
     "rfdetr-nano": lambda device: load_rfdetr(device, size="Nano"),
-    "yolox-nano": lambda device: load_yolox_backend(device, "nano"),
     "yolox-tiny": lambda device: load_yolox_backend(device, "tiny"),
-    "rfdetr-buildings": load_rfdetr_buildings, "yolox-buildings": load_yolox_buildings}
+    "rfdetr-buildings": load_rfdetr_buildings, "yolox-buildings": load_yolox_buildings,
+    "rfdetr-nano-buildings": lambda d: load_rfdetr_buildings(d, "rfdetr-spacenet-nano", "Nano"),
+    "yolox-tiny-buildings": lambda d: load_yolox_buildings(d, "yolox-spacenet-tiny-416")}

@@ -16,7 +16,7 @@ non-crowd annotation. COCO images are not stored in this repository (see ADR-001
 Re-run on 2026-11-14 after the lightweight models were added (ADR-0014, slice L2), with the L1 slicer
 (PNG level 0), so latencies are lower than the first run's (RF-DETR 0.36 to 0.26 s, YOLOX-s 0.21 to 0.16 s
 median). The other columns for the first two rows match the first run. These are COCO scores with zero-shot
-weights; the shipping decision is made on SpaceNet (slice L3).
+weights; the shipping decision was made on SpaceNet (slice L3), where YOLOX-nano missed the bar and was removed; its row is kept as measured.
 
 ![precision-recall](coco-val-200/pr_curves.png)
 ![box tightness and latency](coco-val-200/latency_iou.png)

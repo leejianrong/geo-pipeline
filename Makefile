@@ -57,24 +57,27 @@ coco-data:  ## fetch COCO val2017 annotations (241 MB download) into data/coco/
 	  python3 -c "import os, zipfile; z = zipfile.ZipFile('data/coco/annotations.zip'); z.extract('annotations/instances_val2017.json', 'data/coco'); os.replace('data/coco/annotations/instances_val2017.json', 'data/coco/instances_val2017.json'); os.rmdir('data/coco/annotations'); z.close(); os.remove('data/coco/annotations.zip')"; }
 	@ls -lh data/coco/instances_val2017.json
 
-train-rfdetr:  ## fine-tune RF-DETR Small on the SpaceNet files (GPU, ~20 min) -> data/models/rfdetr-spacenet
+train-rfdetr:  ## fine-tune RF-DETR (VARIANT=Small|Nano) on the SpaceNet files (GPU, ~20 min) -> data/models/rfdetr-spacenet[-nano]
 	docker compose -f compose.yaml -f compose.gpu.yaml build detector
 	docker build -q -t geo-train -f train/Dockerfile .
 	docker run --rm --gpus all --shm-size=8g -v "$$PWD/data:/data" -v "$$PWD/scripts:/scripts:ro" \
-	  --entrypoint python geo-train /scripts/train_rfdetr.py --epochs 30
+	  --entrypoint python geo-train /scripts/train_rfdetr.py --epochs 30 --variant $(or $(VARIANT),Small)
 
-train-yolox:  ## fine-tune YOLOX-s on the SpaceNet files (GPU) and export ONNX -> data/models/yolox-spacenet
+YOLOX_NAME = yolox-spacenet$(if $(filter-out s-640,$(or $(VARIANT),s)-$(or $(SIZE),640)),-$(or $(VARIANT),s)-$(or $(SIZE),640))
+train-yolox:  ## fine-tune YOLOX (VARIANT=s|tiny, SIZE=640|416) on SpaceNet (GPU), export ONNX -> data/models/yolox-spacenet[-variant-size]
 	docker build -q -t geo-train -f train/Dockerfile .
 	docker run --rm --gpus all --shm-size=8g -v "$$PWD/data:/data" -v "$$PWD/scripts:/scripts:ro" \
+	  -e YOLOX_VARIANT=$(or $(VARIANT),s) -e YOLOX_SIZE=$(or $(SIZE),640) \
 	  --entrypoint sh geo-train -c 'cd /scripts && python /opt/yolox/tools/train.py -f yolox_exp.py \
-	  -d 1 -b 16 --fp16 -c /models/yolox_s.pth && python export_yolox_onnx.py yolox_exp.py \
-	  /data/models/yolox-spacenet/best_ckpt.pth /data/models/yolox-spacenet/yolox_buildings.onnx'
+	  -d 1 -b 16 --fp16 -c /models/yolox_$(or $(VARIANT),s).pth && python export_yolox_onnx.py yolox_exp.py \
+	  /data/models/$(YOLOX_NAME)/best_ckpt.pth /data/models/$(YOLOX_NAME)/yolox_buildings.onnx'
 
-bench-spacenet: down  ## fine-tuned RF-DETR and YOLOX on the 30 held-out SpaceNet tiles; report in data/out/bench-spacenet/
-	DETECTOR_MODELS=stub,rfdetr-buildings,yolox-buildings $(MAKE) up
+SPACENET_MODELS ?= rfdetr-buildings,yolox-buildings,rfdetr-nano-buildings,yolox-tiny-buildings
+bench-spacenet: down  ## fine-tuned models on the 30 held-out SpaceNet tiles (THREADS=4, OUT=bench-spacenet); report in data/out/
+	DETECTOR_MODELS=stub,$(SPACENET_MODELS) DETECTOR_THREADS=$(or $(THREADS),4) $(MAKE) up
 	docker compose run --rm --build tools geopipe bench --annotations /data/spacenet/coco/test.json \
-	  --images /data/spacenet/AOI_5_Khartoum/PS-RGB --models rfdetr-buildings,yolox-buildings --limit 30 \
-	  --out /data/out/bench-spacenet --title "SpaceNet Khartoum: 30 held-out tiles" \
+	  --images /data/spacenet/AOI_5_Khartoum/PS-RGB --models $(SPACENET_MODELS) --limit 30 \
+	  --out /data/out/$(or $(OUT),bench-spacenet) --title "SpaceNet Khartoum: 30 held-out tiles, $(or $(THREADS),4) CPU threads" \
 	  --caveat "One city (Khartoum); the models were fine-tuned on 240 tiles of the same city, so this does not show generalisation to other places."
 
 spacenet-data:  ## fetch 300 SpaceNet tiles (~730 MB, CC BY-SA 4.0) and write the COCO files

@@ -309,11 +309,13 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - Decoder grid is correct at 416 and 640 (existing decode tests parametrised by size).
 
-## L3: SpaceNet fine-tunes and the verdict
+## L3: SpaceNet fine-tunes and the verdict (done)
 
 **Delivers:** the data that decides which models ship
 
 **Build plan:** fine-tune nano, tiny and RF-DETR Nano on the existing SpaceNet split; benchmark at 416 and 640 inputs; apply the ADR-0014 bar; remove backends that miss it; record the table in `docs/benchmarks/` and update ADR-0014 with the result.
+
+**Result:** YOLOX-tiny at 416 px passes (0.564 mAP@.5, 3.1x faster than YOLOX-s); tiny at 640, and nano at both sizes, are removed; RF-DETR Nano passes on accuracy but not on speed against YOLOX-s and is kept pending a decision. See `docs/benchmarks/spacenet-khartoum.md`.
 
 **Demo:** a report table of mAP@.5, F1, ms per tile (1 and 4 threads) and end-to-end tiles/s for every candidate, each marked pass or fail against the bar.
 
@@ -359,3 +361,21 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 
 #### Unit
 - The ONNX RF-DETR post-processing matches the torch output on a stored fixture tensor.
+
+## L6: Publish the weights on Hugging Face
+
+**Delivers:** the fine-tuned models that passed the L3/L4 bar, downloadable by others
+
+**Build plan:** `scripts/publish_model.py` uploads one model (ONNX, or the RF-DETR checkpoint) to a Hugging Face model repo with a generated model card; card template filled from the benchmark report (metrics, speed at 1 and 4 threads, training data and split, one-city caveat, the commit and command that produced it); licence CC BY-SA 4.0 with SpaceNet attribution and a link to the source; the GitHub README links to the model pages. Only models that passed the bar are published. Nothing derived from COCO is uploaded (ADR-0010).
+
+**Demo:** `hf_hub_download` of the published ONNX file into a clean directory, then a job on `data/models` weights from that file reproduces the benchmark mAP@.5 within 0.005.
+
+**Rests on assumptions:** CC BY-SA 4.0 for the fine-tuned weights is the cautious reading of SpaceNet's licence (whether weights are a derivative of training data is unsettled); an Apache-2.0 release is not planned.
+
+### Test plan
+
+#### End-to-end
+- Download from the Hub and run `make bench-spacenet` on it; mAP@.5 matches the model card.
+
+#### Unit
+- The model card renders with the licence, attribution and every metric from `results.json`; the script refuses a model that is not marked as passing.
