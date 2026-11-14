@@ -36,7 +36,8 @@ if __name__ == "__main__":
     unknown = [n for n in names if n not in BACKENDS]
     if unknown:
         raise SystemExit(f"unknown DETECTOR_MODELS {unknown}; available: {sorted(BACKENDS)}")
-    backends = {n: BACKENDS[n]() for n in names}  # load everything up front: fail at startup
+    device = os.environ.get("DETECTOR_DEVICE", "cpu")
+    backends = {n: BACKENDS[n](device) for n in names}  # load everything up front: fail at startup
     r, s3 = bus.connect(), store.client()
     bus.consume(r, TILES, "detector", socket.gethostname(), Tile,
                 lambda t: detect_tile(r, s3, backends, t))

@@ -1,0 +1,15 @@
+# GPU variant of the detector: `make up-gpu` (docker compose -f compose.yaml -f compose.gpu.yaml).
+# Needs an NVIDIA driver and the NVIDIA container runtime on the host.
+services:
+  detector:
+    image: geo-pipeline-detector-gpu
+    build:
+      args:
+        TORCH_INDEX: https://download.pytorch.org/whl/cu128
+        ORT: onnxruntime-gpu==1.23.2  # newer ones need CUDA 13; torch cu128 ships CUDA 12
+    environment:
+      DETECTOR_DEVICE: cuda
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]

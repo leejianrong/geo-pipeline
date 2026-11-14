@@ -8,6 +8,7 @@ class-wise NMS.
 import os
 
 import numpy as np
+from backends import resolve_device
 from PIL import Image
 
 from geopipe.merge import nms
@@ -81,11 +82,18 @@ def yolox_boxes(raw: np.ndarray, ratio: float, shape: tuple[int, int], conf: flo
     return result
 
 
-def load_yolox():
+def load_yolox(device: str = "cpu"):
     import onnxruntime as ort  # only when this backend is enabled
 
+    if device == "cuda":
+        ort.preload_dlls()  # finds the CUDA libraries that the torch wheels ship
+    providers = ["CPUExecutionProvider"]
+    if resolve_device(device, "CUDAExecutionProvider" in ort.get_available_providers()) == "cuda":
+        providers.insert(0, "CUDAExecutionProvider")
     session = ort.InferenceSession(os.environ.get("YOLOX_ONNX", "/models/yolox_s.onnx"),
-                                   providers=["CPUExecutionProvider"])
+                                   providers=providers)
+    if device == "cuda" and session.get_providers()[0] != "CUDAExecutionProvider":
+        raise SystemExit("onnxruntime could not load its CUDA provider (missing CUDA libraries?)")
     name = session.get_inputs()[0].name
 
     def detect(img: np.ndarray, conf: float) -> list[Box]:

@@ -1,7 +1,10 @@
 FROM python:3.12-slim-trixie
-# CPU-only torch keeps the image far smaller than the default CUDA wheels.
-RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
-RUN pip install --no-cache-dir rfdetr onnxruntime
+# CPU-only torch keeps the default image far smaller than the CUDA wheels. compose.gpu.yaml
+# builds the GPU variant with TORCH_INDEX=.../cu128 and ORT=onnxruntime-gpu.
+ARG TORCH_INDEX=https://download.pytorch.org/whl/cpu
+ARG ORT=onnxruntime
+RUN pip install --no-cache-dir torch torchvision --index-url $TORCH_INDEX
+RUN pip install --no-cache-dir rfdetr $ORT
 # Bake the pretrained weights in so the container runs offline.
 RUN python -c "from rfdetr import RFDETRSmall; RFDETRSmall()"
 # YOLOX-s, Apache-2.0, from the official release (raw head output; see yolox_onnx.py).

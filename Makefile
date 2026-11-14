@@ -1,4 +1,4 @@
-.PHONY: help base base-all lint test check up down e2e bench-large bench-coco coco-data licences hooks
+.PHONY: help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
 UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pycocotools --with pytest --with ruff --with fastapi --with httpx
@@ -27,6 +27,11 @@ up:  ## start valkey, seaweedfs and the three stages
 	  base/build.sh $$(jq -r .default_gdal base/matrix.json) 3.12
 	docker compose up -d --build
 
+up-gpu:  ## like `up`, with the detector on the GPU (NVIDIA runtime required)
+	docker image inspect geo-gdal:py3.12 >/dev/null 2>&1 || \
+	  base/build.sh $$(jq -r .default_gdal base/matrix.json) 3.12
+	docker compose -f compose.yaml -f compose.gpu.yaml up -d --build
+
 down:  ## stop the stack and delete its data
 	docker compose down -v
 
@@ -35,6 +40,11 @@ e2e: down up  ## end-to-end tests on a fresh stack; artefacts in data/out/
 
 bench-large: down up  ## 2 GB raster: slicer memory and COG vs non-COG timing (slow)
 	docker compose run --rm --build tools pytest -q -s -m slow tests/stack
+
+bench-device: down up  ## tiles/s and parity, CPU then GPU; report in data/out/device-*.json
+	DEVICE_TAG=cpu docker compose run --rm --build -e DEVICE_TAG tools pytest -q -s -m slow tests/stack/test_device.py
+	$(MAKE) down up-gpu
+	DEVICE_TAG=gpu docker compose -f compose.yaml -f compose.gpu.yaml run --rm --build -e DEVICE_TAG tools pytest -q -s -m slow tests/stack/test_device.py
 
 bench-coco: coco-data up  ## RF-DETR vs YOLOX on 200 COCO val images; report in data/out/bench/
 	docker compose run --rm --build tools geopipe bench --annotations /data/coco/instances_val2017.json \

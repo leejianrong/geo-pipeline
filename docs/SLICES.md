@@ -230,7 +230,7 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 #### Unit
 - Request validation uses the same message models as the workers.
 
-## V7: GPU (post-MVP)
+## V7: GPU (done)
 
 **Delivers:** R11
 
