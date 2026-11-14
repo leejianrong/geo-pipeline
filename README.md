@@ -91,12 +91,12 @@ Duplicates across overlapping tiles are removed by class-wise NMS. An object lar
 
 `make spacenet-data` fetches 300 SpaceNet 2 Khartoum tiles (730 MB, CC BY-SA 4.0, kept out of git), `make train-rfdetr` and `make train-yolox` fine-tune on 240 of them on the GPU (about 7 and 12 minutes), and `make bench-spacenet` scores the other 30 through the full pipeline. The COCO weights score 0 here because they have no building class.
 
-| model | mAP@[.5:.95] | mAP@.5 | F1@.5 | detector s/tile (CPU) |
+| model | mAP@[.5:.95] | mAP@.5 | F1@.5 | detector s/image (CPU) |
 |---|---|---|---|---|
 | RF-DETR Small, fine-tuned | 0.327 | 0.659 | 0.642 | 0.85 |
 | YOLOX-s, fine-tuned | 0.303 | 0.586 | 0.612 | 0.31 |
 
-One city and one run per model; details and caveats in [`docs/benchmarks/spacenet-khartoum.md`](docs/benchmarks/spacenet-khartoum.md) and [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md). Enable the models with `DETECTOR_MODELS=stub,rfdetr,yolox,rfdetr-buildings,yolox-buildings`.
+Each 650 px image is cut into 4 overlapping 640 px tiles, so per tile the detector takes about a quarter of the last column. One city and one run per model; details and caveats in [`docs/benchmarks/spacenet-khartoum.md`](docs/benchmarks/spacenet-khartoum.md) and [ADR-0010](docs/adr/0010-spacenet-benchmark-dataset.md). Enable the models with `DETECTOR_MODELS=stub,rfdetr,yolox,rfdetr-buildings,yolox-buildings`.
 
 ## GDAL + Python + numpy 2 base images
 
