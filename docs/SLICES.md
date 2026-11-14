@@ -193,7 +193,7 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 
 **Build plan**
 
-1. Fetch a small subset (about 300 tiles, ~750 MB) of SpaceNet 2 `PS-RGB` and `geojson_buildings` with anonymous S3 access; inspect one tile with `gdalinfo` (bands, bit depth, CRS). CC BY-SA 4.0, never committed (ADR-0010).
+1. Fetch a small subset (about 300 tiles, ~750 MB) of SpaceNet 2 `PS-RGB` and `geojson_buildings` with anonymous S3 access; inspect one tile with `gdalinfo` (bands, bit depth, CRS): done, `make spacenet-data`. CC BY-SA 4.0, never committed (ADR-0010).
 2. Converter: footprint polygons to axis-aligned boxes in map coordinates, round-tripped through the geotransform.
 3. CUDA training image (shared with V7); one documented full fine-tune of RF-DETR Small and YOLOX-s on this machine's RTX 3080 Ti (single class `building`). No QLoRA: the models are small.
 4. Reuse the V5 harness with a SpaceNet loader and 16-bit stretch; report the same metrics.

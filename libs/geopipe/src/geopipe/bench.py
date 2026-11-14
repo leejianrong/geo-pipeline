@@ -1,7 +1,8 @@
-"""COCO benchmark: run images through the real pipeline for each model and score the GeoJSON.
+"""Benchmark: run images through the real pipeline for each model and score the GeoJSON.
 
-Images are wrapped as GeoTIFFs (arbitrary CRS, 1 m pixels) so the pixel boxes in the output
-line up with COCO's ground truth. Needs the `bench` extra (pycocotools, matplotlib); the
+COCO images are wrapped as GeoTIFFs (arbitrary CRS, 1 m pixels) so the pixel boxes in the
+output line up with COCO's ground truth; images that already are `.tif` (SpaceNet) are
+uploaded as they are. Needs the `bench` extra (pycocotools, matplotlib); the
 GeoTIFF writer needs GDAL, so run it in the tools container.
 """
 
@@ -182,7 +183,12 @@ def score_model(gt: dict, name_to_id: dict, runs: dict[int, dict], image_ids: li
             "mean_detect_seconds": float(np.mean([runs[i]["detect_seconds"] for i in image_ids]))}
 
 
-def write_report(results: dict[str, dict], n_images: int, conf: float, out: Path) -> Path:
+COCO_CAVEAT = ("COCO shows everyday objects. These numbers do not predict performance on "
+               "overhead imagery.")
+
+
+def write_report(results: dict[str, dict], n_images: int, conf: float, out: Path,
+                 title: str | None = None, caveat: str = COCO_CAVEAT) -> Path:
     """Markdown report, JSON of all numbers, and PNG plots."""
     import matplotlib
 
@@ -217,7 +223,7 @@ def write_report(results: dict[str, dict], n_images: int, conf: float, out: Path
         f"{m['mean_detect_seconds']:.2f} | {m['detections']} |" for n, m in results.items())
     header = ("| model | mAP@[.5:.95] | mAP@.5 | AR@100 | P@.5 | R@.5 | F1@.5 "
               "| median latency s/img | mean detect s/img | detections |")
-    (out / "report.md").write_text(f"""# COCO benchmark: {n_images} val2017 images
+    (out / "report.md").write_text(f"""# {title or f"COCO benchmark: {n_images} val2017 images"}
 
 {header}
 |---|---|---|---|---|---|---|---|---|---|
@@ -226,8 +232,8 @@ def write_report(results: dict[str, dict], n_images: int, conf: float, out: Path
 - Detections were collected at confidence >= {conf} (needed for mAP). P, R and F1 use detections
   with score >= 0.5 and IoU >= 0.5.
 - Latency is client-observed, from submit to done, through the whole pipeline (S3, queue, slicer,
-  detector, postprocess), one image at a time, CPU only. "detect" is the model's own time.
-- COCO shows everyday objects. These numbers do not predict performance on overhead imagery.
+  detector, postprocess), one image at a time. "detect" is the model's own time.
+- {caveat}
 
 ![precision-recall](pr_curves.png)
 ![iou and latency](latency_iou.png)
@@ -239,7 +245,8 @@ def write_report(results: dict[str, dict], n_images: int, conf: float, out: Path
 
 
 def run_benchmark(r, s3, coco: dict, models: list[str], images_dir: Path, out: Path, limit: int,
-                  conf: float = 0.05, iou: float = 0.65, download: bool = False) -> dict:
+                  conf: float = 0.05, iou: float = 0.65, download: bool = False,
+                  **report) -> dict:
     """Upload the images once, run every model over them, score and write the report."""
     import tempfile
 
@@ -252,9 +259,12 @@ def run_benchmark(r, s3, coco: dict, models: list[str], images_dir: Path, out: P
     keys = {}
     with tempfile.TemporaryDirectory() as tmp:
         for info in infos:
-            rgb = np.array(Image.open(fetch_image(info, images_dir, download)).convert("RGB"))
-            tif = Path(tmp) / f"{info['id']}.tif"
-            write_geotiff(rgb, tif)
+            path = fetch_image(info, images_dir, download)
+            if path.suffix == ".tif":
+                tif = path
+            else:
+                tif = Path(tmp) / f"{info['id']}.tif"
+                write_geotiff(np.array(Image.open(path).convert("RGB")), tif)
             keys[info["id"]] = f"bench/{info['id']}.tif"
             s3.upload_file(str(tif), BUCKET, keys[info["id"]])
     name_to_id = {c["name"]: c["id"] for c in coco["categories"]}
@@ -264,5 +274,5 @@ def run_benchmark(r, s3, coco: dict, models: list[str], images_dir: Path, out: P
     for model in models:
         runs = run_model(r, s3, keys, model, tenant, conf, iou)
         results[model] = score_model(coco, name_to_id, runs, list(keys))
-    write_report(results, len(infos), conf, out)
+    write_report(results, len(infos), conf, out, **report)
     return results

@@ -43,6 +43,12 @@ def main() -> None:
     b.add_argument("--iou", type=float, default=0.65)
     b.add_argument("--download", action="store_true", help="fetch missing images from COCO")
     b.add_argument("--out", default="bench-out")
+    b.add_argument("--title", help="report title (default: the COCO one)")
+    b.add_argument("--caveat", help="report caveat (default: the COCO one)")
+    sp = sub.add_parser("spacenet-prepare",
+                        help="write COCO training data and test.json from SpaceNet tiles")
+    sp.add_argument("root", help="a directory made by scripts/fetch_spacenet.py")
+    sp.add_argument("out")
     w = sub.add_parser("wait", help="wait for a job: exit 0 done, 2 incomplete, 1 error")
     w.add_argument("job_id")
     w.add_argument("--timeout", type=int, default=120)
@@ -58,6 +64,14 @@ def main() -> None:
             s3.download_file(bucket, key, a.path)
         return
 
+    if a.cmd == "spacenet-prepare":
+        from pathlib import Path
+
+        from . import spacenet  # needs GDAL
+
+        print(spacenet.prepare(Path(a.root), Path(a.out)))
+        return
+
     r = bus.connect()
     if a.cmd == "bench":
         import json
@@ -67,8 +81,9 @@ def main() -> None:
 
         with open(a.annotations) as f:
             coco = json.load(f)
+        report = {k: v for k, v in (("title", a.title), ("caveat", a.caveat)) if v}
         bench.run_benchmark(r, store.client(), coco, a.models.split(","), Path(a.images),
-                            Path(a.out), a.limit, a.conf, a.iou, a.download)
+                            Path(a.out), a.limit, a.conf, a.iou, a.download, **report)
         print(Path(a.out) / "report.md")
     elif a.cmd == "viz":
         from . import viz  # needs the `viz` extra (matplotlib) and GDAL
