@@ -547,6 +547,8 @@ Requirements RS1 to RS8 are in `PLAN.md`. Order: the riskiest unknown first (S0)
 
 **Delivers:** RS7
 
+**Progress:** GEO-76 done: `DELETE /datasets/{id}`, `/models/{id}`, `/runs/{id}` and `/train/runs/{id}` remove the manifest first (so the item stops listing), then every object under its prefix (in batches of 1000), its index entries and, for a run, its history. Deleting a dataset also deletes the stored runs scored on it, deleting a model the runs scored for it; models trained on a deleted dataset stay (their `trained_on` is just a name). Refused with 404 for another tenant's item, 403 for a built-in (shared) one, and 409 while a queued or running training run or benchmark is using the dataset or model (benchmark jobs are tracked in `tenant:<tid>:benchjobs`; a run that died without a final state keeps its dataset until the status expires after seven days). The Explore dataset card and the model view have Delete buttons (confirmed, disabled for built-ins); all lists reload.
+
 **Build plan:** delete datasets, models and runs with reference checks (a dataset in use by a running job cannot be deleted); quotas and per-upload limits enforced when the presigned URL is issued; a Playwright smoke test of the studio in CI (sign in, open Explore, see boxes), which also closes the "browser test in CI" loose end.
 
 **Demo:** deleting a dataset removes its objects and listing entries; an upload over the limit is refused before any bytes are sent.

@@ -299,3 +299,48 @@ def find_train_run(s3, bucket: str, tenant: str, run_id: str) -> TrainRunManifes
 def list_train_runs(r, s3, bucket: str, tenant: str) -> list[TrainRunManifest]:
     ids = r.zrevrange(f"tenant:{tenant}:trainruns", 0, 99)
     return [run for i in ids if (run := find_train_run(s3, bucket, tenant, i))]
+
+
+def delete_prefix(s3, bucket: str, prefix: str) -> int:
+    """Delete every object under `prefix` (a store allows 1000 keys per delete call)."""
+    deleted = 0
+    for page in s3.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix):
+        keys = [{"Key": o["Key"]} for o in page.get("Contents", [])]
+        if keys:
+            s3.delete_objects(Bucket=bucket, Delete={"Objects": keys})
+            deleted += len(keys)
+    return deleted
+
+
+def delete_dataset(s3, r, bucket: str, tenant: str, dataset_id: str) -> None:
+    """Remove a tenant's dataset: the manifest first (so it stops listing as ready), then the
+    files, then its index entry. The caller has checked that nothing is using it."""
+    base = prefix(tenant, dataset_id)
+    s3.delete_object(Bucket=bucket, Key=f"{base}/manifest.json")
+    delete_prefix(s3, bucket, f"{base}/")
+    r.zrem(index_key(tenant), dataset_id)
+
+
+def delete_model(s3, r, bucket: str, tenant: str, model_id: str) -> None:
+    base = model_prefix(tenant, model_id)
+    s3.delete_object(Bucket=bucket, Key=f"{base}/manifest.json")
+    delete_prefix(s3, bucket, f"{base}/")
+    r.zrem(f"tenant:{tenant}:models", model_id)
+
+
+def delete_run(s3, r, bucket: str, tenant: str, run_id: str) -> None:
+    """Remove a bench or training run: its files, its listing and its per-epoch history."""
+    base = run_prefix(tenant, run_id)
+    s3.delete_object(Bucket=bucket, Key=f"{base}/manifest.json")
+    delete_prefix(s3, bucket, f"{base}/")
+    r.zrem(f"tenant:{tenant}:runs", run_id)
+    r.zrem(f"tenant:{tenant}:trainruns", run_id)
+    r.delete(f"train:{run_id}:history", f"train:{run_id}:cancel")
+
+
+def runs_of(r, s3, bucket: str, tenant: str, *, model_id: str | None = None,
+            dataset_id: str | None = None) -> list[RunManifest]:
+    """The tenant's own stored bench runs of a model and/or on a dataset."""
+    return [run for scope, run in list_runs(r, s3, bucket, tenant)
+            if scope == tenant and model_id in (None, run.model_id)
+            and dataset_id in (None, run.dataset_id)]

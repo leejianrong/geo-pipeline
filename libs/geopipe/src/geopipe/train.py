@@ -124,3 +124,22 @@ def handle_train(r, s3, job: TrainJob, train_fn: TrainFn | None, *, poll: float 
         registry.write_train_run(s3, r, job.bucket, job.tenant_id, run.model_copy(
             update={"state": "failed", "error": str(e)}))
         raise
+
+
+def in_use(r, s3, bucket: str, tenant: str, *, dataset_id: str | None = None,
+           model_id: str | None = None) -> list[str]:
+    """What is still running on a dataset or a model: training runs and benchmark jobs that have
+    not ended. Used to refuse deleting what a job needs."""
+    busy = []
+    if dataset_id:
+        for run in registry.list_train_runs(r, s3, bucket, tenant):
+            state = r.hget(f"job:{run.id}:status", "state")
+            if run.dataset_id == dataset_id and run.state == "queued" and state not in bus.TERMINAL:
+                busy.append(f"training run {run.id}")
+    for job_id in r.zrange(f"tenant:{tenant}:benchjobs", 0, -1):
+        status = r.hgetall(f"job:{job_id}:status")
+        if status and status.get("state") not in bus.TERMINAL and (
+                dataset_id and status.get("dataset_id") == dataset_id
+                or model_id and status.get("model_id") == model_id):
+            busy.append(f"benchmark {job_id}")
+    return busy

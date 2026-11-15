@@ -20,9 +20,14 @@ from train import train_view
 def build_session() -> Session:
     client = Client()
     message = Signal("Enter your API key to start.")
+    async def removed() -> None:  # something was deleted: every list that could show it reloads
+        for refresh in (detect_refresh, explore_refresh, model_refresh, tune_refresh,
+                        bench_refresh, train_refresh):
+            await refresh()
+
     detect_cards, detect_refresh = detect_view(client)
-    explore_cards, explore_refresh = explore_view(client)
-    model_cards, model_refresh = models_view(client)
+    explore_cards, explore_refresh = explore_view(client, on_deleted=removed)
+    model_cards, model_refresh = models_view(client, on_deleted=removed)
 
     bench_cards, bench_refresh = benchmark_view(client)
 

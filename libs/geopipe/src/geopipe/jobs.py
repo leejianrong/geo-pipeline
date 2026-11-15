@@ -117,6 +117,8 @@ def submit_bench(r: redis.Redis, s3, bucket: str, tenant_id: str, model_id: str,
     job_id = f"bench-{uuid.uuid4().hex[:12]}"
     set_status(r, job_id, "queued", submitted_at=time.time(), tenant_id=tenant_id, kind="bench",
                model_id=model_id, dataset_id=dataset_id, split=split)
+    r.zadd(f"tenant:{tenant_id}:benchjobs", {job_id: time.time()})  # for the delete checks
+    r.zremrangebyrank(f"tenant:{tenant_id}:benchjobs", 0, -101)  # the newest hundred
     publish(r, BENCH, BenchJob(tenant_id=tenant_id, job_id=job_id, bucket=bucket,
                                model_id=model_id, dataset_id=dataset_id, split=split,
                                limit=limit))

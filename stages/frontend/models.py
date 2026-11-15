@@ -2,7 +2,7 @@
 reports are, and where the model is right or wrong on each image (ADR-0015, S2)."""
 
 from common import Client, Select, Table, data_uri, fetch
-from indah import Card, Chart, Col, ImageOverlay, Row, Signal, Slider, Stat, Text
+from indah import Button, Card, Chart, Col, ImageOverlay, Row, Signal, Slider, Stat, Text
 
 from geopipe.viewer import (
     filter_features,
@@ -17,7 +17,7 @@ SCORERS = {"pipeline": "the full pipeline (slicer, detector, postprocess), score
            "in-process": "the detector run directly, scored by pycocotools and geopipe.bench"}
 
 
-def models_view(client: Client):
+def models_view(client: Client, on_deleted=None):
     """The view's components and a coroutine that loads the model list (after sign-in)."""
     models = Signal([])
     model_id = Signal("")
@@ -71,6 +71,24 @@ def models_view(client: Client):
             message.set("No benchmark run stored for this model yet.")
         await load_run()
 
+    def own_model() -> bool:
+        m = next((m for m in models.value if m["id"] == model_id.value), None)
+        return bool(m and m["scope"] == "own")
+
+    async def delete_model() -> None:
+        if not own_model():
+            return
+        resp = await client.request("DELETE", f"/models/{model_id.value}")
+        if resp.status_code != 200:
+            message.set(f"Could not delete the model: {resp.json().get('detail')}")
+            return
+        gone = model_id.value
+        model_id.set("")
+        await load_models()
+        message.set(f"Deleted {gone} and {resp.json()['runs_deleted']} run(s) scored for it.")
+        if on_deleted:
+            await on_deleted()
+
     async def load_models() -> None:
         resp = await client.request("GET", "/models")
         if resp.status_code != 200:
@@ -117,6 +135,9 @@ def models_view(client: Client):
                    on_change=load_model),
             Select(run_id, options=lambda: [r["id"] for r in runs.value], label="Run",
                    on_change=load_run),
+            Button("Delete model", on_click=delete_model, variant="ghost",
+                   confirm="Delete this model and the runs scored for it?",
+                   disabled=lambda: not own_model()),
             Text(lambda: message.value),
             Text(lambda: (f"Scored by {SCORERS[run.value['scorer']]}. Detections kept at "
                           f"confidence >= {run.value['conf']}, matched at IoU {run.value['iou']} "
