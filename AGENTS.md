@@ -19,6 +19,7 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 - `make up-slim` and `make e2e-slim`: torch-free ONNX detector (`stages/detector/Dockerfile.slim`, `DETECTOR_RUNTIME=onnx`; same model names, so changes to `backends.py` must work in both runtimes). `make export-rfdetr` exports fine-tuned RF-DETR for it. `make quantise` makes INT8 YOLOX models. `make publish-model REPO=user/name` stages weights and a model card for Hugging Face (nothing is uploaded without `UPLOAD=1` and `HF_TOKEN`; never print the token).
 - `make register-builtin`: put the SpaceNet dataset (after `make spacenet-data`) into the registry so the Explore tab shows it.
 - `make up-gpu`: detector and trainer on the GPU via `compose.gpu.yaml`; never run it alongside the CPU detector (shared consumer group). `make bench-device`: CPU vs GPU tiles/s and parity (needs a GPU, not in CI).
+- `scripts/gpu_train_run.py`: one real fine-tuning on the local GPU through the stack (queue it with pueue, minimal env; the GPU is shared, see its docstring). Never start GPU work directly.
 - `make base` (default GDAL, both Pythons), `make base-all` (every GDAL x Python, slow), `make licences`, `make down`. Bare `make` lists targets.
 
 ## Conventions
