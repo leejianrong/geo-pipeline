@@ -20,7 +20,7 @@ def build_session() -> Session:
     detect_cards, detect_refresh = detect_view(client)
     explore_cards, explore_refresh = explore_view(client)
     model_cards, model_refresh = models_view(client)
-    train_cards, _uploaded = train_view(client)
+    train_cards, train_refresh = train_view(client, on_registered=explore_refresh)
 
     async def sign_in() -> None:
         resp = await client.request("GET", "/jobs")
@@ -30,6 +30,7 @@ def build_session() -> Session:
             await detect_refresh()
             await explore_refresh()
             await model_refresh()
+            await train_refresh()
 
     return Session(Column(children=[
         Text("# geo-pipeline\n\nDetect objects in a GeoTIFF, or explore a dataset.", markdown=True),
