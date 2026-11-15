@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 SCHEMA_VERSION = 1
 JOBS_IN, TILES, DETECTIONS, JOBS_DONE = "jobs:in", "tiles", "detections", "jobs:done"
+INGEST = "ingest"  # uploaded datasets to validate and register (trainer stage)
 JOBS_DEAD = "jobs:dead"  # messages that exhausted their retries or could not be parsed
 DEADLINES = "jobs:deadlines"  # sorted set: job id -> time after which it counts as stalled
 
@@ -70,3 +71,14 @@ class Done(_Msg):
     status: Literal["done", "incomplete", "error"]
     output_uri: str | None = None
     error: str | None = None
+
+
+class IngestJob(_Msg):
+    """Validate an uploaded dataset zip and register it. `job_id` tracks progress like any job."""
+
+    bucket: str
+    upload_key: str
+    dataset_id: str
+    name: str
+    licence: str
+    attribution: str

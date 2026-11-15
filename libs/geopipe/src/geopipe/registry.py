@@ -38,6 +38,7 @@ class DatasetManifest(BaseModel):
     licence: str = Field(min_length=1)
     attribution: str
     state: Literal["ingesting", "ready", "failed"]
+    report: str = ""  # why an upload failed, shown to its owner
     created_at: float
 
 
@@ -254,3 +255,10 @@ def list_runs(r, s3, bucket: str, tenant: str) -> list[tuple[str, RunManifest]]:
     return [hit for scope in (SHARED, tenant) for rid in r.zrange(
         f"runs:{SHARED}" if scope == SHARED else f"tenant:{scope}:runs", 0, -1)
         if (hit := find_run(s3, bucket, tenant, rid)) and hit[0] == scope]
+
+
+def write_manifest(s3, r, bucket: str, scope: str, manifest: DatasetManifest) -> None:
+    """Write a dataset manifest (last, after any files) and list the dataset."""
+    s3.put_object(Bucket=bucket, Key=f"{prefix(scope, manifest.id)}/manifest.json",
+                  Body=manifest.model_dump_json(), ContentType="application/json")
+    r.zadd(index_key(scope), {manifest.id: manifest.created_at})

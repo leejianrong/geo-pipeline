@@ -4,7 +4,7 @@ import time
 import redis
 
 from .bus import publish, set_status
-from .messages import JOBS_IN, Job, Options
+from .messages import INGEST, JOBS_IN, IngestJob, Job, Options
 
 
 def derive_job_id(tenant_id: str, bucket: str, key: str, etag: str, options: Options) -> str:
@@ -29,4 +29,17 @@ def submit_job(r: redis.Redis, s3, bucket: str, key: str, tenant_id: str = "loca
     r.zadd(f"tenant:{tenant_id}:jobs", {job_id: time.time()})  # the job list the API serves
     publish(r, JOBS_IN, Job(tenant_id=tenant_id, job_id=job_id, bucket=bucket, key=key,
                             options=options))
+    return job_id
+
+
+def submit_ingest(r: redis.Redis, bucket: str, tenant_id: str, upload_key: str, dataset_id: str,
+                  name: str, licence: str, attribution: str) -> str:
+    """Queue an uploaded dataset zip for validation. The upload is checked by the worker, not
+    here, so a missing file is reported the same way as any other bad input."""
+    job_id = hashlib.sha256(f"ingest|{tenant_id}|{dataset_id}".encode()).hexdigest()[:16]
+    set_status(r, job_id, "queued", submitted_at=time.time(), tenant_id=tenant_id, kind="ingest",
+               dataset_id=dataset_id)
+    publish(r, INGEST, IngestJob(tenant_id=tenant_id, job_id=job_id, bucket=bucket,
+                                 upload_key=upload_key, dataset_id=dataset_id, name=name,
+                                 licence=licence, attribution=attribution))
     return job_id

@@ -38,6 +38,10 @@ services:
       DETECTOR_THREADS: ${DETECTOR_THREADS:-4}
     volumes: ["./data/models:/weights:ro"]
     depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+  trainer:
+    build: {context: ., dockerfile: stages/trainer/Dockerfile}
+    environment: *env
+    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   postprocess:
     build: {context: ., dockerfile: stages/postprocess/Dockerfile}
     environment: *env
