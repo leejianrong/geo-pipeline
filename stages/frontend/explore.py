@@ -11,7 +11,7 @@ PAGE = 60  # thumbnails per page
 SPLITS = ["train", "valid", "test"]
 
 
-def explore_view(client: Client):
+def explore_view(client: Client, on_deleted=None):
     """The tab's components and a coroutine that loads the dataset list (called after sign-in)."""
     datasets = Signal([])  # manifests from GET /datasets
     dataset_id = Signal("")
@@ -89,6 +89,20 @@ def explore_view(client: Client):
             dataset_id.set(datasets.value[0]["id"])
         await load_split()
 
+    async def delete_dataset() -> None:
+        d = current()
+        if not d or d["scope"] != "own":
+            return
+        resp = await client.request("DELETE", f"/datasets/{d['id']}")
+        if resp.status_code != 200:
+            message.set(f"Could not delete {d['name']}: {resp.json().get('detail')}")
+            return
+        dataset_id.set("")
+        await load_datasets()
+        message.set(f"Deleted {d['name']} and {resp.json()['runs_deleted']} run(s) scored on it.")
+        if on_deleted:
+            await on_deleted()
+
     async def turn(step: int) -> None:
         d = current()
         last = max(0, ((d["splits"][split.value] if d else 0) - 1) // PAGE)
@@ -122,6 +136,9 @@ def explore_view(client: Client):
                     on_change=load_split,
                 ),
                 Segmented(split, options=SPLITS, label="Split", on_change=load_split),
+                Button("Delete dataset", on_click=delete_dataset, variant="ghost",
+                       confirm="Delete this dataset and the benchmark runs scored on it?",
+                       disabled=lambda: not (current() or {}).get("scope") == "own"),
                 Text(lambda: message.value),
                 Row(
                     children=[

@@ -13,7 +13,7 @@ from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from . import ingest, model_ingest, registry, store, train
+from . import bus, ingest, model_ingest, registry, store, train
 from .jobs import submit_bench, submit_ingest, submit_model_ingest, submit_train
 from .presets import MAX_EPOCHS, PRESETS
 
@@ -93,6 +93,23 @@ def add_dataset_routes(app: FastAPI, r, s3, public_s3, bucket: str, tenant: Call
     def get_dataset(dataset_id: str, tid: str = Depends(tenant)) -> dict:
         scope, m = manifest(dataset_id, tid)
         return {**m.model_dump(), "scope": "shared" if scope == registry.SHARED else "own"}
+
+    @app.delete("/datasets/{dataset_id}")
+    def delete_dataset(dataset_id: str, tid: str = Depends(tenant)) -> dict:
+        """Delete one of your datasets and the stored runs scored on it. Built-in datasets are
+        read-only, and one that a training run or benchmark is using cannot go."""
+        hit = registry.find(s3, bucket, tid, dataset_id)
+        if hit is None:
+            raise HTTPException(404, "unknown dataset")
+        if hit[0] == registry.SHARED:
+            raise HTTPException(403, "built-in datasets cannot be deleted")
+        if busy := train.in_use(r, s3, bucket, tid, dataset_id=dataset_id):
+            raise HTTPException(409, f"in use by {', '.join(busy)}; wait for it or cancel it")
+        runs = registry.runs_of(r, s3, bucket, tid, dataset_id=dataset_id)
+        for run in runs:
+            registry.delete_run(s3, r, bucket, tid, run.id)
+        registry.delete_dataset(s3, r, bucket, tid, dataset_id)
+        return {"deleted": dataset_id, "runs_deleted": len(runs)}
 
     @app.get("/datasets/{dataset_id}/annotations/{split}")
     def get_annotations(dataset_id: str, split: str, tid: str = Depends(tenant)) -> dict:
@@ -174,6 +191,23 @@ def add_model_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None
     def list_models(tid: str = Depends(tenant)) -> list[dict]:
         return [tag(scope, m) for scope, m in registry.list_models(r, s3, bucket, tid)]
 
+    @app.delete("/models/{model_id}")
+    def delete_model(model_id: str, tid: str = Depends(tenant)) -> dict:
+        """Delete one of your models and the stored runs scored for it. Built-in models are
+        read-only, and one that a benchmark is using cannot go."""
+        hit = registry.find_model(s3, bucket, tid, model_id)
+        if hit is None:
+            raise HTTPException(404, "unknown model")
+        if hit[0] == registry.SHARED:
+            raise HTTPException(403, "built-in models cannot be deleted")
+        if busy := train.in_use(r, s3, bucket, tid, model_id=model_id):
+            raise HTTPException(409, f"in use by {', '.join(busy)}; wait for it")
+        runs = registry.runs_of(r, s3, bucket, tid, model_id=model_id)
+        for run in runs:
+            registry.delete_run(s3, r, bucket, tid, run.id)
+        registry.delete_model(s3, r, bucket, tid, model_id)
+        return {"deleted": model_id, "runs_deleted": len(runs)}
+
     @app.get("/models/{model_id}")
     def get_model(model_id: str, tid: str = Depends(tenant)) -> dict:
         hit = registry.find_model(s3, bucket, tid, model_id)
@@ -197,6 +231,14 @@ def add_model_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None
                   tid: str = Depends(tenant)) -> list[dict]:
         return [tag(scope, m) for scope, m in registry.list_runs(r, s3, bucket, tid)
                 if model_id in (None, m.model_id) and dataset_id in (None, m.dataset_id)]
+
+    @app.delete("/runs/{run_id}")
+    def delete_run(run_id: str, tid: str = Depends(tenant)) -> dict:
+        scope, _ = run_of(run_id, tid)
+        if scope == registry.SHARED:
+            raise HTTPException(403, "built-in runs cannot be deleted")
+        registry.delete_run(s3, r, bucket, tid, run_id)
+        return {"deleted": run_id}
 
     @app.get("/runs/{run_id}")
     def get_run(run_id: str, tid: str = Depends(tenant)) -> dict:
@@ -275,3 +317,14 @@ def add_train_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None
             raise HTTPException(409, f"the run already ended ({run.state})")
         train.request_cancel(r, run_id)
         return {"run_id": run_id, "cancelling": True}
+
+    @app.delete("/train/runs/{run_id}")
+    def delete_train_run(run_id: str, tid: str = Depends(tenant)) -> dict:
+        """Forget a finished training run (the model it made stays). Cancel a running one first."""
+        run = registry.find_train_run(s3, bucket, tid, run_id)
+        if run is None:
+            raise HTTPException(404, "unknown run")
+        if run.state == "queued" and r.hget(f"job:{run_id}:status", "state") not in bus.TERMINAL:
+            raise HTTPException(409, "the run is still going; cancel it first")
+        registry.delete_run(s3, r, bucket, tid, run_id)
+        return {"deleted": run_id}
