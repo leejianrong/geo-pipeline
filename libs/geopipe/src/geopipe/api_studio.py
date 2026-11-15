@@ -4,11 +4,24 @@ A tenant sees its own datasets and the shared ones, and nothing else. Ids and fi
 checked against strict patterns because they become object keys.
 """
 
+import re
+import uuid
 from collections.abc import Callable
 
 from fastapi import Depends, FastAPI, HTTPException
+from pydantic import BaseModel, Field
 
-from . import registry, store
+from . import ingest, registry, store
+from .jobs import submit_ingest
+
+
+class DatasetRequest(BaseModel):
+    """What the owner says about an uploaded zip."""
+
+    upload_key: str
+    name: str = Field(min_length=1, max_length=80)
+    licence: str = Field(min_length=1, max_length=200)
+    attribution: str = Field(max_length=2000)
 
 
 def thumb_key(split: str, file_name: str) -> str:
@@ -31,6 +44,18 @@ def add_dataset_routes(app: FastAPI, r, s3, public_s3, bucket: str, tenant: Call
 
     def url(scope: str, dataset_id: str, rest: str) -> str:
         return store.presign_get(public_s3, bucket, f"{registry.prefix(scope, dataset_id)}/{rest}")
+
+    @app.post("/datasets", status_code=202)
+    def create_dataset(req: DatasetRequest, tid: str = Depends(tenant)) -> dict:
+        """Queue an uploaded zip for validation; progress is `GET /jobs/{job_id}`, the result is
+        the dataset's manifest (`ready`, or `failed` with its report)."""
+        if ".." in req.upload_key or not req.upload_key.startswith(ingest.upload_prefix(tid)):
+            raise HTTPException(403, "key is not one of your dataset uploads")
+        slug = re.sub(r"[^a-z0-9]+", "-", req.name.lower()).strip("-")[:40] or "dataset"
+        dataset_id = f"{slug}-{uuid.uuid4().hex[:6]}"
+        job_id = submit_ingest(r, bucket, tid, req.upload_key, dataset_id, req.name, req.licence,
+                               req.attribution)
+        return {"dataset_id": dataset_id, "job_id": job_id}
 
     @app.get("/datasets")
     def list_datasets(tid: str = Depends(tenant)) -> list[dict]:
