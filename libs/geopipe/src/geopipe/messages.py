@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 SCHEMA_VERSION = 1
 JOBS_IN, TILES, DETECTIONS, JOBS_DONE = "jobs:in", "tiles", "detections", "jobs:done"
+TRAIN = "train"  # fine-tuning runs (the GPU trainer image)
 INGEST = "ingest"  # uploaded datasets to validate and register (trainer stage)
 JOBS_DEAD = "jobs:dead"  # messages that exhausted their retries or could not be parsed
 DEADLINES = "jobs:deadlines"  # sorted set: job id -> time after which it counts as stalled
@@ -82,3 +83,12 @@ class IngestJob(_Msg):
     name: str
     licence: str
     attribution: str
+
+
+class TrainJob(_Msg):
+    """Fine-tune a preset on a registered dataset. `job_id` is the run id."""
+
+    bucket: str
+    dataset_id: str
+    preset: str
+    epochs: int

@@ -27,9 +27,11 @@ up:  ## start valkey, seaweedfs and the three stages
 	  base/build.sh $$(jq -r .default_gdal base/matrix.json) 3.12
 	docker compose up -d --build
 
-up-gpu:  ## like `up`, with the detector on the GPU (NVIDIA runtime required)
+up-gpu:  ## like `up`, with the detector and the trainer on the GPU (NVIDIA runtime required)
 	docker image inspect geo-gdal:py3.12 >/dev/null 2>&1 || \
 	  base/build.sh $$(jq -r .default_gdal base/matrix.json) 3.12
+	docker compose -f compose.yaml -f compose.gpu.yaml build detector
+	docker build -q -t geo-train -f train/Dockerfile .
 	docker compose -f compose.yaml -f compose.gpu.yaml up -d --build
 
 up-slim:  ## like `up`, with the torch-free ONNX detector (about a quarter of the image size)

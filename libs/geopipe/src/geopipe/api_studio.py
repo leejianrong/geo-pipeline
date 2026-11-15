@@ -12,7 +12,8 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from . import ingest, registry, store
-from .jobs import submit_ingest
+from .jobs import submit_ingest, submit_train
+from .presets import MAX_EPOCHS, PRESETS
 
 
 class DatasetRequest(BaseModel):
@@ -22,6 +23,12 @@ class DatasetRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     licence: str = Field(min_length=1, max_length=200)
     attribution: str = Field(max_length=2000)
+
+
+class TrainRequest(BaseModel):
+    dataset_id: str
+    preset: str
+    epochs: int | None = Field(default=None, ge=1, le=MAX_EPOCHS)
 
 
 def thumb_key(split: str, file_name: str) -> str:
@@ -170,3 +177,36 @@ def add_model_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None
         if boxes is None:
             raise HTTPException(404, "unknown image")
         return [b for b in boxes if b["score"] >= min_score]
+
+
+def add_train_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None:
+    """Fine-tuning runs (ADR-0016). Always the caller's own; another tenant's id is a 404."""
+
+    def live(run: registry.TrainRunManifest) -> dict:
+        """The manifest merged with the live status (state, epoch, validation AP)."""
+        status = r.hgetall(f"job:{run.id}:status") if run.state == "queued" else {}
+        return {**run.model_dump(), **({"state": status["state"], "epoch": status.get("epoch"),
+                "val_ap": status.get("val_ap")} if status else {})}
+
+    @app.get("/train/presets")
+    def presets() -> list[dict]:
+        return [{"name": n, "label": p.label, "epochs": p.epochs} for n, p in PRESETS.items()]
+
+    @app.post("/train/runs", status_code=202)
+    def start_run(req: TrainRequest, tid: str = Depends(tenant)) -> dict:
+        try:
+            return {"run_id": submit_train(r, s3, bucket, tid, req.dataset_id, req.preset,
+                                           req.epochs)}
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
+
+    @app.get("/train/runs")
+    def list_runs(tid: str = Depends(tenant)) -> list[dict]:
+        return [live(run) for run in registry.list_train_runs(r, s3, bucket, tid)]
+
+    @app.get("/train/runs/{run_id}")
+    def get_run(run_id: str, tid: str = Depends(tenant)) -> dict:
+        run = registry.find_train_run(s3, bucket, tid, run_id)
+        if run is None:
+            raise HTTPException(404, "unknown run")
+        return live(run)

@@ -13,3 +13,12 @@ services:
       resources:
         reservations:
           devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+  trainer:
+    image: geo-pipeline-trainer-gpu
+    build:
+      dockerfile: stages/trainer/Dockerfile.gpu
+    shm_size: 8g
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
