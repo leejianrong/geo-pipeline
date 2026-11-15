@@ -16,6 +16,6 @@ ADD --checksum=sha256:427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc
 COPY libs/geopipe /src/geopipe
 RUN pip install --no-cache-dir /src/geopipe
 COPY stages/detector/backends.py stages/detector/yolox_onnx.py stages/detector/rfdetr_onnx.py \
-     stages/detector/main.py /app/
+     stages/detector/user_models.py stages/detector/main.py /app/
 ENV DETECTOR_RUNTIME=onnx
 CMD ["python", "/app/main.py"]

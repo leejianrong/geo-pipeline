@@ -48,6 +48,7 @@ def detect_view(client: Client):
     """The tab's components and a coroutine that reloads its job list (called after sign-in)."""
     status = Signal("")
     model = Signal(next((m for m in MODELS if m != "stub"), MODELS[0]))  # stub is a test backend
+    own_models = Signal([])  # the viewer's registered models, run as `user:<id>`
     busy = Signal(False)
     progress = Signal(0.0)
     rows = Signal([])
@@ -66,6 +67,12 @@ def detect_view(client: Client):
         resp = await client.request("GET", "/jobs")
         if resp.status_code == 200:
             rows.set([job_row(s) for s in resp.json()])
+        resp = await client.request("GET", "/models")
+        if resp.status_code == 200:
+            own_models.set([m for m in resp.json() if m["scope"] == "own" and m["backend"] is None])
+
+    def model_options() -> list:
+        return [*MODELS, *((f"user:{m['id']}", f"{m['name']} (yours)") for m in own_models.value)]
 
     async def open_job(job_id: str) -> None:
         resp = await client.request("GET", f"/jobs/{job_id}/result")
@@ -125,7 +132,7 @@ def detect_view(client: Client):
 
     cards = [
         Card(title="New job", children=[
-            Select(model, options=MODELS, label="Model"),
+            Select(model, options=model_options, label="Model"),
             Upload(on_upload, accept=".tif,.tiff,image/tiff", label="GeoTIFF"),
             Spinner(active=busy, label="Working..."),
             Progress(progress, label="Tiles detected"),

@@ -21,7 +21,12 @@ def build_session() -> Session:
     detect_cards, detect_refresh = detect_view(client)
     explore_cards, explore_refresh = explore_view(client)
     model_cards, model_refresh = models_view(client)
-    tune_cards, tune_refresh = finetune_view(client, on_model=model_refresh)
+
+    async def model_added() -> None:  # a trained model shows in the model view and in Detect
+        await model_refresh()
+        await detect_refresh()
+
+    tune_cards, tune_refresh = finetune_view(client, on_model=model_added)
 
     async def dataset_added() -> None:  # a new dataset shows in Explore and in the trainer's list
         await explore_refresh()
