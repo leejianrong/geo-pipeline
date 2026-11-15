@@ -61,7 +61,15 @@ def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str])
 
     @app.post("/uploads")
     def create_upload(tid: str = Depends(tenant)) -> dict:
-        key = f"tenants/{tid}/uploads/{uuid.uuid4().hex}.tif"
+        return presigned_put(tid, f"{uuid.uuid4().hex}.tif")
+
+    @app.post("/uploads/dataset")
+    def create_dataset_upload(tid: str = Depends(tenant)) -> dict:
+        """A presigned PUT for a dataset zip; the browser sends the file straight to the store."""
+        return presigned_put(tid, f"datasets/{uuid.uuid4().hex}.zip")
+
+    def presigned_put(tid: str, name: str) -> dict:
+        key = f"tenants/{tid}/uploads/{name}"
         url = public_s3.generate_presigned_url(
             "put_object", Params={"Bucket": bucket, "Key": key}, ExpiresIn=3600)
         return {"key": key, "upload_url": url, "method": "PUT"}

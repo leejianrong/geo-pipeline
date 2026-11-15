@@ -54,6 +54,15 @@ def test_upload_url_is_scoped_to_the_tenant():
     assert "X-Amz-Signature=" in body["upload_url"]  # v4: SeaweedFS rejects v2 presigned URLs
 
 
+def test_dataset_upload_url_is_scoped_to_the_tenant_and_ends_in_zip():
+    c = client()
+    body = c.post("/uploads/dataset", headers=A).json()
+    assert body["key"].startswith("tenants/acme/uploads/datasets/") and body["key"].endswith(".zip")
+    assert body["upload_url"].startswith("http://public:8333/imagery/tenants/acme/uploads/datasets/")
+    assert c.post("/uploads/dataset").status_code == 401
+    assert c.post("/uploads/dataset", headers=B).json()["key"].startswith("tenants/globex/")
+
+
 def test_cannot_submit_another_tenants_or_arbitrary_key():
     c = client()
     for key in ("tenants/globex/uploads/x.tif", "other/x.tif", "tenants/acme/../globex/x.tif"):

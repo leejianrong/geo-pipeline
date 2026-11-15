@@ -461,6 +461,8 @@ Requirements RS1 to RS8 are in `PLAN.md`. Order: the riskiest unknown first (S0)
 
 **Delivers:** RS3
 
+**Progress:** GEO-63 done: `POST /uploads/dataset` returns a presigned PUT under `tenants/<tid>/uploads/datasets/`; the Train tab uses indah 0.14.0's `DirectUpload` (a render-spec custom component cannot run an upload, so the component was added to indah, ADR-0051 there). A real browser sent 300 MB through the tab: 29 distinct progress values, object size exact, frontend memory +4 MiB. The rest is open.
+
 **Build plan:** the direct-upload indah component and `POST /uploads/dataset` (presigned PUT, per S0); `POST /datasets` queues an `IngestJob`; the `trainer` stage (small image, introduced here with only the ingest handler) unzips safely, detects Roboflow-style splits or applies S-A1, validates the COCO file (missing images, boxes outside the image, empty images, duplicate names, class list), writes thumbnails, annotations and the manifest, and reports; the Train tab's dataset form (name, licence, attribution) and a validation report view.
 
 **Demo:** upload the 730 MB SpaceNet zip in a browser; the frontend's memory growth stays under 100 MB; the validation report appears; the dataset is in Explore.
