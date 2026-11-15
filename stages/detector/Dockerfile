@@ -15,6 +15,5 @@ ADD --checksum=sha256:427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc
     https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx /models/yolox_tiny.onnx
 COPY libs/geopipe /src/geopipe
 RUN pip install --no-cache-dir /src/geopipe
-COPY stages/detector/backends.py stages/detector/yolox_onnx.py stages/detector/rfdetr_onnx.py \
-     stages/detector/user_models.py stages/detector/main.py /app/
+COPY stages/detector/backends.py stages/detector/user_models.py stages/detector/main.py /app/
 CMD ["python", "/app/main.py"]

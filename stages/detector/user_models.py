@@ -15,20 +15,10 @@ from pathlib import Path
 from backends import Backend
 
 from geopipe import bus, registry
+from geopipe.model_backend import build_backend
 
 log = logging.getLogger(__name__)
 KEEP = 3
-
-
-def build_backend(device: str, model: registry.ModelManifest, path: str) -> Backend:
-    """An ONNX Runtime backend for a registered model, by the decoder its manifest names."""
-    if model.decoder == "yolox":
-        from yolox_onnx import load_yolox
-
-        return load_yolox(device, path, model.classes)
-    from rfdetr_onnx import load_rfdetr_onnx
-
-    return load_rfdetr_onnx(device, path, dict(enumerate(model.classes)))
 
 
 class UserModels:

@@ -7,7 +7,6 @@ the same output shape as the original and exits with an error if not.
 
 import argparse
 import glob
-import sys
 import tempfile
 
 import numpy as np
@@ -16,8 +15,7 @@ from onnxruntime.quantization import CalibrationDataReader, QuantFormat, QuantTy
 from onnxruntime.quantization.shape_inference import quant_pre_process
 from PIL import Image
 
-sys.path.insert(0, "/app")  # stages/detector, mounted by `make quantise`
-from yolox_onnx import letterbox  # noqa: E402
+from geopipe.yolox_onnx import letterbox
 
 
 class Tiles(CalibrationDataReader):

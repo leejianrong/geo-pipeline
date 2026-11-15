@@ -25,7 +25,7 @@ the best accuracy: it is {speedup:.1f}x faster than a fine-tuned YOLOX-s and kee
 
 Input `1x3x416x416` float32, BGR, 0-255, letterboxed with grey (114) padding. Output is the raw head
 `1x3549x6` (box offsets, log sizes, objectness, class probability); decoding and NMS are in
-[`stages/detector/yolox_onnx.py`](https://github.com/leejianrong/geo-pipeline/blob/main/stages/detector/yolox_onnx.py).
+[`libs/geopipe/src/geopipe/yolox_onnx.py`](https://github.com/leejianrong/geo-pipeline/blob/main/libs/geopipe/src/geopipe/yolox_onnx.py).
 The INT8 file is ONNX Runtime static QDQ quantisation, calibrated on 30 training tiles.
 
 ## Results

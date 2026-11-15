@@ -7,10 +7,12 @@ import redis
 from . import registry
 from .bus import publish, set_status
 from .messages import (
+    BENCH,
     INGEST,
     JOBS_IN,
     MODEL_INGEST,
     TRAIN,
+    BenchJob,
     IngestJob,
     Job,
     ModelIngestJob,
@@ -99,4 +101,23 @@ def submit_model_ingest(r: redis.Redis, bucket: str, tenant_id: str, upload_key:
     publish(r, MODEL_INGEST, ModelIngestJob(
         tenant_id=tenant_id, job_id=job_id, bucket=bucket, upload_key=upload_key,
         model_id=model_id, name=name, decoder=decoder, classes=classes, licence=licence))
+    return job_id
+
+
+def submit_bench(r: redis.Redis, s3, bucket: str, tenant_id: str, model_id: str, dataset_id: str,
+                 split: str, limit: int | None = None) -> str:
+    """Queue an in-process benchmark; returns the job id (its status carries `run_id` at the end).
+    Raises ValueError for a model or dataset the tenant cannot use."""
+    model = registry.find_model(s3, bucket, tenant_id, model_id)
+    if model is None or model[1].state != "ready" or model[1].backend is not None:
+        raise ValueError("unknown model, or a built-in one (its benchmarks come from the CLI)")
+    dataset = registry.find(s3, bucket, tenant_id, dataset_id)
+    if dataset is None or dataset[1].state != "ready" or split not in dataset[1].splits:
+        raise ValueError("unknown dataset, or it has no such split")
+    job_id = f"bench-{uuid.uuid4().hex[:12]}"
+    set_status(r, job_id, "queued", submitted_at=time.time(), tenant_id=tenant_id, kind="bench",
+               model_id=model_id, dataset_id=dataset_id, split=split)
+    publish(r, BENCH, BenchJob(tenant_id=tenant_id, job_id=job_id, bucket=bucket,
+                               model_id=model_id, dataset_id=dataset_id, split=split,
+                               limit=limit))
     return job_id

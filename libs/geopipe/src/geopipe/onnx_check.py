@@ -13,7 +13,7 @@ MAX_BYTES = 500 * 1024**2
 DECODERS = ("yolox", "rfdetr")
 STANDARD_DOMAINS = {"", "ai.onnx", "ai.onnx.ml"}
 YOLOX_STRIDES = (8, 16, 32)
-RFDETR_QUERIES = 300  # what stages/detector/rfdetr_onnx.py selects from
+RFDETR_QUERIES = 300  # what geopipe/rfdetr_onnx.py selects from
 
 
 def yolox_anchors(size: int) -> int:

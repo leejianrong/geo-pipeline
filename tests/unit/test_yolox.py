@@ -1,12 +1,10 @@
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parents[2] / "stages" / "detector"))
-from yolox_onnx import COCO80, letterbox, yolox_boxes  # noqa: E402
+from geopipe.yolox_onnx import COCO80, letterbox, yolox_boxes  # noqa: E402
 
 FIXTURES = Path(__file__).parents[1] / "fixtures"
 

@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from . import ingest, model_ingest, registry, store, train
-from .jobs import submit_ingest, submit_model_ingest, submit_train
+from .jobs import submit_bench, submit_ingest, submit_model_ingest, submit_train
 from .presets import MAX_EPOCHS, PRESETS
 
 
@@ -36,6 +36,13 @@ class ModelRequest(BaseModel):
     classes: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(
         min_length=1, max_length=100)
     licence: str = Field(min_length=1, max_length=200)
+
+
+class BenchRequest(BaseModel):
+    model_id: str
+    dataset_id: str
+    split: str
+    limit: int | None = Field(default=None, ge=1, le=20_000)
 
 
 class TrainRequest(BaseModel):
@@ -173,6 +180,17 @@ def add_model_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None
         if not hit:
             raise HTTPException(404, "unknown model")
         return tag(*hit)
+
+    @app.post("/bench/runs", status_code=202)
+    def start_bench(req: BenchRequest, tid: str = Depends(tenant)) -> dict:
+        """Score a registered model on a split in the trainer. Progress is `GET /jobs/{job_id}`;
+        the finished run (`run_id` in that status) is an ordinary run, listed by `GET /runs`."""
+        try:
+            job_id = submit_bench(r, s3, bucket, tid, req.model_id, req.dataset_id, req.split,
+                                  req.limit)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
+        return {"job_id": job_id}
 
     @app.get("/runs")
     def list_runs(model_id: str | None = None, dataset_id: str | None = None,
