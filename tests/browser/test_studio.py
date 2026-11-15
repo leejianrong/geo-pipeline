@@ -102,12 +102,9 @@ def test_an_uploaded_dataset_shows_its_ground_truth_boxes_in_explore(page, workd
     page.get_by_role("tab", name="Explore").click()
     select = page.get_by_label("Dataset", exact=True)
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower())
-    value = next(
-        v
-        for v in select.locator("option").evaluate_all("os => os.map(o => o.value)")
-        if v.startswith(slug)
-    )
-    select.select_option(value)
+    entry = select.locator(f"option[value^='{slug}']")
+    expect(entry).to_have_count(1)  # the list reloads right after the upload is checked
+    select.select_option(entry.get_attribute("value"))
 
     overlay = page.locator(".overlay-wrap", has=page.get_by_alt_text(GROUND_TRUTH))
     expect(overlay.locator("img")).to_have_attribute("src", re.compile("^data:image/png"))

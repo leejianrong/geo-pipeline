@@ -54,10 +54,10 @@ def modelupload_view(client: Client, on_registered=None):
             if status is None:
                 outcome.set("Still checking; come back in a few minutes.")
             elif status["state"] == "done":
+                if on_registered:
+                    await on_registered()  # the other tabs list it before this one says so
                 outcome.set(f"Registered: a {status['input_size']} px {decoder.value} model. "
                             "It is in the Detect tab and the model view.")
-                if on_registered:
-                    await on_registered()
             else:
                 outcome.set(f"The model was rejected:\n\n{bullets(status['error'])}")
 

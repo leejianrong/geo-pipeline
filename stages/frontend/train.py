@@ -65,14 +65,14 @@ def train_view(client: Client, on_registered=None):
             outcome.set("Still checking; come back to this tab in a few minutes.")
             return
         upload_key.set("")
+        await refresh()
+        if status["state"] == "done" and on_registered:
+            await on_registered()  # the other tabs list it before this tab says it is there
         if status["state"] == "done":
             outcome.set(f"Ready: {status['images']} images, {status['boxes']} boxes. "
                         "It is in the Explore tab.")
         else:
             outcome.set(f"The dataset was rejected:\n\n{bullets(status['error'])}")
-        await refresh()
-        if status["state"] == "done" and on_registered:
-            await on_registered()
 
     def listing() -> str:
         return "\n".join(
