@@ -484,6 +484,8 @@ Requirements RS1 to RS8 are in `PLAN.md`. Order: the riskiest unknown first (S0)
 
 **Delivers:** RS4
 
+**Progress:** GEO-67 done: `TrainJob` on the `train` stream; the four presets in `geopipe/presets.py` (`fast` YOLOX-tiny 416, `balanced` YOLOX-s 640, `accurate` RF-DETR Nano, `best` RF-DETR Small, epochs 1 to 200); `POST /train/runs`, `GET /train/runs[/{id}]`, `GET /train/presets` (a tenant's own runs only); `geopipe/train.py` runs the checks, takes the per-tenant slot (a second run shows `waiting` until the first ends; the slot frees itself if the worker dies) and calls the training function, which is a seam. The CPU trainer has none and refuses every run at once with a message naming the GPU image. `stages/trainer/Dockerfile.gpu` and the trainer entry in `compose.gpu.yaml` build the GPU variant (`make up-gpu`); its `runner.py` is a stub until GEO-68 and GEO-69. Ingest and training use separate consumer threads, so a long run never blocks an ingest.
+
 **Build plan:** `stages/trainer` with its small CPU image (ingest and bench, built in CI) and the GPU variant (training, `compose.gpu.yaml`); `TrainJob`; the four presets; one active training per tenant; progress (epoch, validation AP) parsed into the run status; cancel; ONNX export and model registration at the end; the Train tab: dataset, preset, epochs, start, `Steps` and `Progress`, a live loss chart, run history. The training function is a seam; no GPU means an explicit failure.
 
 **Demo:** in the browser, fine-tune the `fast` preset on the 240-tile SpaceNet split; the run ends with a registered model that shows up in Explore.

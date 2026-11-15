@@ -1,0 +1,9 @@
+# The trainer with the training stack: `make up-gpu` builds geo-train (train/Dockerfile) first.
+ARG BASE=geo-train
+FROM ${BASE}
+COPY libs/geopipe /src/geopipe
+RUN pip install --no-cache-dir /src/geopipe
+COPY stages/trainer/main.py stages/trainer/runner.py /app/
+WORKDIR /app
+ENV TRAINER_DEVICE=cuda
+CMD ["python", "/app/main.py"]

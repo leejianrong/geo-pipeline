@@ -262,3 +262,38 @@ def write_manifest(s3, r, bucket: str, scope: str, manifest: DatasetManifest) ->
     s3.put_object(Bucket=bucket, Key=f"{prefix(scope, manifest.id)}/manifest.json",
                   Body=manifest.model_dump_json(), ContentType="application/json")
     r.zadd(index_key(scope), {manifest.id: manifest.created_at})
+
+
+class TrainRunManifest(BaseModel):
+    """One fine-tuning run. `state` here is the last one written: `queued` at submission and a
+    final one at the end; the live state and progress are in the job status (`GET /train/runs`)."""
+
+    schema_version: Literal[1] = 1
+    id: str
+    kind: Literal["train"] = "train"
+    state: Literal["queued", "done", "failed", "cancelled"] = "queued"
+    dataset_id: str
+    preset: str
+    epochs: int
+    model_id: str | None = None  # set when the run ends in a registered model
+    error: str = ""
+    created_at: float
+
+
+def write_train_run(s3, r, bucket: str, scope: str, run: TrainRunManifest) -> None:
+    s3.put_object(Bucket=bucket, Key=f"{run_prefix(scope, run.id)}/manifest.json",
+                  Body=run.model_dump_json(), ContentType="application/json")
+    r.zadd(f"tenant:{scope}:trainruns", {run.id: run.created_at})
+
+
+def find_train_run(s3, bucket: str, tenant: str, run_id: str) -> TrainRunManifest | None:
+    """Training runs are always the tenant's own (there is no shared training)."""
+    if not ID_RE.match(run_id):
+        return None
+    raw = _get_json(s3, bucket, f"{run_prefix(tenant, run_id)}/manifest.json")
+    return TrainRunManifest.model_validate(raw) if raw and raw.get("kind") == "train" else None
+
+
+def list_train_runs(r, s3, bucket: str, tenant: str) -> list[TrainRunManifest]:
+    ids = r.zrevrange(f"tenant:{tenant}:trainruns", 0, 99)
+    return [run for i in ids if (run := find_train_run(s3, bucket, tenant, i))]
