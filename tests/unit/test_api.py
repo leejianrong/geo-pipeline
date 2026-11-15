@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from geopipe import store
-from geopipe.api import create_app, parse_keys
+from geopipe.api import DEFAULT_QUOTAS, Quotas, create_app, parse_keys
 
 
 class FakeRedis:
@@ -15,13 +15,16 @@ class FakeRedis:
     def zrevrange(self, key, start, stop):
         return self.jobs.get(key, [])[start:stop + 1]
 
+    def zcard(self, key):
+        return len(self.jobs.get(key, []))
+
     def ping(self):
         return True
 
 
-def client(jobs=None):
+def client(jobs=None, quotas=DEFAULT_QUOTAS):
     s3 = store.client("http://public:8333")
-    app = create_app(FakeRedis(jobs), s3, s3, "imagery", {"ka": "acme", "kb": "globex"})
+    app = create_app(FakeRedis(jobs), s3, s3, "imagery", {"ka": "acme", "kb": "globex"}, quotas)
     return TestClient(app)
 
 
@@ -56,11 +59,12 @@ def test_upload_url_is_scoped_to_the_tenant():
 
 def test_dataset_upload_url_is_scoped_to_the_tenant_and_ends_in_zip():
     c = client()
-    body = c.post("/uploads/dataset", headers=A).json()
+    body = c.post("/uploads/dataset", json={"size": 10}, headers=A).json()
     assert body["key"].startswith("tenants/acme/uploads/datasets/") and body["key"].endswith(".zip")
     assert body["upload_url"].startswith("http://public:8333/imagery/tenants/acme/uploads/datasets/")
-    assert c.post("/uploads/dataset").status_code == 401
-    assert c.post("/uploads/dataset", headers=B).json()["key"].startswith("tenants/globex/")
+    assert c.post("/uploads/dataset", json={"size": 10}).status_code == 401
+    other = c.post("/uploads/dataset", json={"size": 10}, headers=B).json()
+    assert other["key"].startswith("tenants/globex/")
 
 
 def test_cannot_submit_another_tenants_or_arbitrary_key():
@@ -109,3 +113,29 @@ def test_result_carries_the_preview_and_raster_size():
     body = client({"job:j1:status": status}).get("/jobs/j1/result", headers=A).json()
     assert (body["width"], body["height"]) == (650, 480)
     assert "j1.preview.jpg" in body["preview_url"]
+
+
+def test_a_dataset_or_model_upload_url_is_signed_for_the_declared_size():
+    for path in ("/uploads/dataset", "/uploads/model"):
+        url = client().post(path, json={"size": 1234}, headers=A).json()["upload_url"]
+        assert "content-length" in url.lower()  # among the signed headers
+
+
+def test_an_upload_over_the_size_limit_is_refused_before_a_url_is_issued():
+    c = client(quotas=Quotas(dataset_bytes=1000, model_bytes=500))
+    assert c.post("/uploads/dataset", json={"size": 1000}, headers=A).status_code == 200
+    big = c.post("/uploads/dataset", json={"size": 1001}, headers=A)
+    assert big.status_code == 413 and "at most" in big.json()["detail"]
+    assert c.post("/uploads/model", json={"size": 501}, headers=A).status_code == 413
+    assert c.post("/uploads/model", json={"size": 500}, headers=A).status_code == 200
+    for bad in ({"size": 0}, {"size": -5}, {}, {"size": "big"}):
+        assert c.post("/uploads/dataset", json=bad, headers=A).status_code == 422
+
+
+def test_a_tenant_at_its_dataset_or_model_quota_gets_no_more_upload_urls():
+    jobs = {"tenant:acme:datasets": ["d1", "d2"], "tenant:acme:models": ["m1"]}
+    c = client(jobs, Quotas(datasets=2, models=2))
+    full = c.post("/uploads/dataset", json={"size": 10}, headers=A)
+    assert full.status_code == 409 and "delete one" in full.json()["detail"]
+    assert c.post("/uploads/model", json={"size": 10}, headers=A).status_code == 200
+    assert c.post("/uploads/dataset", json={"size": 10}, headers=B).status_code == 200  # globex
