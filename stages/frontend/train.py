@@ -2,9 +2,7 @@
 to the object store through a presigned PUT, so it never passes through this server; the form
 then names it and the trainer stage validates it."""
 
-import asyncio
-
-from common import Client
+from common import Client, wait_job
 from indah import Button, Card, DirectUpload, Signal, Text, TextInput
 
 POLL_SECONDS = 1.0
@@ -59,26 +57,20 @@ def train_view(client: Client, on_registered=None):
         if resp.status_code != 202:
             outcome.set(f"Could not create the dataset: {resp.json().get('detail')}")
             return
-        job_id, spent = resp.json()["job_id"], 0.0
         outcome.set("Checking the dataset...")
-        while spent < GIVE_UP_SECONDS:
-            await asyncio.sleep(POLL_SECONDS)
-            spent += POLL_SECONDS
-            status = (await client.request("GET", f"/jobs/{job_id}")).json()
-            if status["state"] == "done":
-                outcome.set(f"Ready: {status['images']} images, {status['boxes']} boxes. "
-                            "It is in the Explore tab.")
-                upload_key.set("")
-                await refresh()
-                if on_registered:
-                    await on_registered()
-                return
-            if status["state"] == "error":
-                outcome.set(f"The dataset was rejected:\n\n{bullets(status['error'])}")
-                upload_key.set("")
-                await refresh()
-                return
-        outcome.set("Still checking; come back to this tab in a few minutes.")
+        status = await wait_job(client, resp.json()["job_id"], POLL_SECONDS, GIVE_UP_SECONDS)
+        if status is None:
+            outcome.set("Still checking; come back to this tab in a few minutes.")
+            return
+        upload_key.set("")
+        if status["state"] == "done":
+            outcome.set(f"Ready: {status['images']} images, {status['boxes']} boxes. "
+                        "It is in the Explore tab.")
+        else:
+            outcome.set(f"The dataset was rejected:\n\n{bullets(status['error'])}")
+        await refresh()
+        if status["state"] == "done" and on_registered:
+            await on_registered()
 
     def listing() -> str:
         return "\n".join(

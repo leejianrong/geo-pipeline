@@ -11,6 +11,7 @@ from explore import explore_view
 from finetune import finetune_view
 from indah import Button, Card, Column, Session, Signal, Tabs, Text, TextInput, create_app
 from models import models_view
+from modelupload import modelupload_view
 
 from train import train_view
 
@@ -33,6 +34,7 @@ def build_session() -> Session:
         await tune_refresh()
 
     train_cards, train_refresh = train_view(client, on_registered=dataset_added)
+    upload_cards = modelupload_view(client, on_registered=model_added)
 
     async def sign_in() -> None:
         resp = await client.request("GET", "/jobs")
@@ -53,7 +55,7 @@ def build_session() -> Session:
             Text(lambda: message.value)]),
         Tabs(children=[Column(children=detect_cards),
                        Column(children=[*explore_cards, *model_cards]),
-                       Column(children=[*train_cards, *tune_cards])],
+                       Column(children=[*train_cards, *tune_cards, *upload_cards])],
              labels=["Detect", "Explore", "Train"])]))
 
 

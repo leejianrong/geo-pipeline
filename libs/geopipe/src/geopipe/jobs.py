@@ -6,7 +6,17 @@ import redis
 
 from . import registry
 from .bus import publish, set_status
-from .messages import INGEST, JOBS_IN, TRAIN, IngestJob, Job, Options, TrainJob
+from .messages import (
+    INGEST,
+    JOBS_IN,
+    MODEL_INGEST,
+    TRAIN,
+    IngestJob,
+    Job,
+    ModelIngestJob,
+    Options,
+    TrainJob,
+)
 from .presets import MAX_EPOCHS, PRESETS
 
 
@@ -77,3 +87,16 @@ def submit_train(r: redis.Redis, s3, bucket: str, tenant_id: str, dataset_id: st
     job = new_train_run(r, s3, bucket, tenant_id, dataset_id, preset, epochs)
     publish(r, TRAIN, job)
     return job.job_id
+
+
+def submit_model_ingest(r: redis.Redis, bucket: str, tenant_id: str, upload_key: str,
+                        model_id: str, name: str, decoder: str, classes: list[str],
+                        licence: str) -> str:
+    """Queue an uploaded ONNX model for validation; the worker checks the upload itself."""
+    job_id = hashlib.sha256(f"model|{tenant_id}|{model_id}".encode()).hexdigest()[:16]
+    set_status(r, job_id, "queued", submitted_at=time.time(), tenant_id=tenant_id, kind="model",
+               model_id=model_id)
+    publish(r, MODEL_INGEST, ModelIngestJob(
+        tenant_id=tenant_id, job_id=job_id, bucket=bucket, upload_key=upload_key,
+        model_id=model_id, name=name, decoder=decoder, classes=classes, licence=licence))
+    return job_id

@@ -8,12 +8,13 @@ import json
 import re
 import uuid
 from collections.abc import Callable
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from . import ingest, registry, store, train
-from .jobs import submit_ingest, submit_train
+from . import ingest, model_ingest, registry, store, train
+from .jobs import submit_ingest, submit_model_ingest, submit_train
 from .presets import MAX_EPOCHS, PRESETS
 
 
@@ -24,6 +25,17 @@ class DatasetRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     licence: str = Field(min_length=1, max_length=200)
     attribution: str = Field(max_length=2000)
+
+
+class ModelRequest(BaseModel):
+    """What the owner says about an uploaded ONNX file."""
+
+    upload_key: str
+    name: str = Field(min_length=1, max_length=80)
+    decoder: Literal["yolox", "rfdetr"]
+    classes: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(
+        min_length=1, max_length=100)
+    licence: str = Field(min_length=1, max_length=200)
 
 
 class TrainRequest(BaseModel):
@@ -138,6 +150,18 @@ def add_model_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None
             if p["image_id"] in files:
                 out[files[p["image_id"]]].append({"bbox": p["bbox"], "score": p["score"]})
         return out
+
+    @app.post("/models", status_code=202)
+    def create_model(req: ModelRequest, tid: str = Depends(tenant)) -> dict:
+        """Queue an uploaded ONNX file for validation; progress is `GET /jobs/{job_id}`, the result
+        is the model's manifest (`ready`, or `failed` with its report)."""
+        if ".." in req.upload_key or not req.upload_key.startswith(model_ingest.upload_prefix(tid)):
+            raise HTTPException(403, "key is not one of your model uploads")
+        slug = re.sub(r"[^a-z0-9]+", "-", req.name.lower()).strip("-")[:40] or "model"
+        model_id = f"{slug}-{uuid.uuid4().hex[:6]}"
+        job_id = submit_model_ingest(r, bucket, tid, req.upload_key, model_id, req.name,
+                                     req.decoder, req.classes, req.licence)
+        return {"model_id": model_id, "job_id": job_id}
 
     @app.get("/models")
     def list_models(tid: str = Depends(tenant)) -> list[dict]:

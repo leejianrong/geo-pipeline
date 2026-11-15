@@ -69,7 +69,8 @@ def detect_view(client: Client):
             rows.set([job_row(s) for s in resp.json()])
         resp = await client.request("GET", "/models")
         if resp.status_code == 200:
-            own_models.set([m for m in resp.json() if m["scope"] == "own" and m["backend"] is None])
+            own_models.set([m for m in resp.json() if m["scope"] == "own" and m["backend"] is None
+                                       and m["state"] == "ready"])
 
     def model_options() -> list:
         return [*MODELS, *((f"user:{m['id']}", f"{m['name']} (yours)") for m in own_models.value)]
