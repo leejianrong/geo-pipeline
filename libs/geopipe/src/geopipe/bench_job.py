@@ -4,8 +4,9 @@ Faster than one pipeline job per image: each image is cut into the pipeline's ow
 tile goes through the model's ONNX Runtime backend (the same decoder and NMS the detector uses),
 the boxes are merged across tile seams by `merge_boxes`, and the result is scored by
 `bench.score_model`, the code `geopipe bench` uses. Images and tiles are chosen as the CLI does
-(`pick_images`; tiles from `windows`; an all-black tile counts as nodata and is skipped), so a run
-here is comparable to a pipeline run. Latency is the model's wall time per image.
+(`pick_images`; tiles from `windows` with the CLI's overlap of 0; an all-black tile counts as
+nodata and is skipped), so a run here is comparable to a pipeline run. Latency is the model's
+wall time per image.
 """
 
 import io
@@ -25,12 +26,13 @@ from .messages import BenchJob, Options
 from .model_backend import Backend, build_backend
 from .tiling import windows
 
-DEFAULTS = Options()  # the pipeline's tile size and overlap
+DEFAULTS = Options()  # the pipeline's tile size
+OVERLAP = 0.0  # as `geopipe bench` submits its jobs: no overlap, so no edge-cut rule either
 
 
 def run_inprocess(backend: Backend, images: Iterable[tuple[int, np.ndarray]], conf: float,
                   iou: float, tile: int = DEFAULTS.tile_size,
-                  overlap: float = DEFAULTS.overlap) -> dict[int, dict]:
+                  overlap: float = OVERLAP) -> dict[int, dict]:
     """image id -> {"features", "latency", "detect_seconds"}, shaped like a pipeline run."""
     runs = {}
     for image_id, img in images:

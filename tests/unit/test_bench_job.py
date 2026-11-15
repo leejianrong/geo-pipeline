@@ -1,13 +1,13 @@
 import numpy as np
 
 from geopipe.bench import score_model
-from geopipe.bench_job import run_inprocess
+from geopipe.bench_job import OVERLAP, run_inprocess
 from geopipe.messages import Box
 from geopipe.tiling import windows
 
 W, H = 2600, 700  # the right-hand tiles hold nothing
-# objects well inside tiles or inside the overlap, so no interior tile edge cuts them
-GT = [[100, 100, 80, 60], [700, 200, 90, 90], [1200, 400, 100, 70], [300, 520, 60, 50]]
+# objects wholly inside a tile, so no tile edge cuts them
+GT = [[100, 100, 80, 60], [700, 200, 90, 90], [1000, 400, 100, 70], [300, 520, 60, 50]]
 GT_COCO = {
     "images": [{"id": 1, "file_name": "a.png", "width": W, "height": H}],
     "annotations": [
@@ -34,7 +34,7 @@ class Oracle:
 
     def __call__(self, crop, conf):
         self.calls += 1
-        for win in windows(W, H, 640, 0.2):
+        for win in windows(W, H, 640, OVERLAP):
             if np.array_equal(
                 self.img[win.y_off : win.y_off + win.h, win.x_off : win.x_off + win.w], crop
             ):
@@ -73,10 +73,10 @@ def test_a_tile_of_nodata_is_not_sent_to_the_model():
     img = image()
     oracle = Oracle(img)
     run_inprocess(oracle, [(1, img)], conf=0.05, iou=0.65)
-    total = len(windows(W, H, 640, 0.2))
+    total = len(windows(W, H, 640, OVERLAP))
     blank = sum(
         1
-        for w in windows(W, H, 640, 0.2)
+        for w in windows(W, H, 640, OVERLAP)
         if not img[w.y_off : w.y_off + w.h, w.x_off : w.x_off + w.w].any()
     )
     assert blank > 0 and oracle.calls == total - blank
