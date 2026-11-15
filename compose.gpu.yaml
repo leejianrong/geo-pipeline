@@ -18,6 +18,8 @@ services:
     build:
       dockerfile: stages/trainer/Dockerfile.gpu
     shm_size: 8g
+    environment:
+      TRAINER_DEVICE: cuda
     deploy:
       resources:
         reservations:
