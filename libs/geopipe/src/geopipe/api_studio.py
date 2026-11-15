@@ -1,4 +1,4 @@
-"""Studio routes (ADR-0015): datasets, for now. Read-only; images come as presigned URLs.
+"""Studio routes (ADR-0015): datasets, models and runs. Read-only; images come as presigned URLs.
 
 A tenant sees its own datasets and the shared ones, and nothing else. Ids and file names are
 checked against strict patterns because they become object keys.
@@ -75,3 +75,73 @@ def add_dataset_routes(app: FastAPI, r, s3, public_s3, bucket: str, tenant: Call
         return {"url": url(scope, dataset_id, f"{split}/{file}"), "width": info["width"],
                 "height": info["height"],
                 "boxes": [a["bbox"] for a in coco["annotations"] if a["image_id"] == info["id"]]}
+
+
+def add_model_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None:
+    """Models and benchmark runs. A tenant sees its own and the shared ones; another tenant's id
+    answers 404, the same as an unknown one."""
+
+    def tag(scope: str, m) -> dict:
+        return {**m.model_dump(), "scope": "shared" if scope == registry.SHARED else "own"}
+
+    def run_of(run_id: str, tid: str) -> tuple[str, registry.RunManifest]:
+        hit = registry.find_run(s3, bucket, tid, run_id)
+        if not hit:
+            raise HTTPException(404, "unknown run")
+        return hit
+
+    def predictions(scope: str, run: registry.RunManifest, run_id: str) -> dict[str, list[dict]]:
+        """The run's boxes grouped by image file: pixel [x, y, w, h] and score."""
+        base = registry.run_prefix(scope, run_id)
+        raw = registry._get_json(s3, bucket, f"{base}/predictions.json")
+        ds = registry.find(s3, bucket, scope, run.dataset_id)
+        coco = (registry.read_annotations(s3, bucket, ds[0], run.dataset_id, run.split)
+                if ds else None)
+        if raw is None or coco is None:
+            raise HTTPException(404, "predictions are not available")
+        files = {i["id"]: i["file_name"] for i in coco["images"]}
+        out: dict[str, list[dict]] = {f: [] for f in files.values()}
+        for p in raw:
+            if p["image_id"] in files:
+                out[files[p["image_id"]]].append({"bbox": p["bbox"], "score": p["score"]})
+        return out
+
+    @app.get("/models")
+    def list_models(tid: str = Depends(tenant)) -> list[dict]:
+        return [tag(scope, m) for scope, m in registry.list_models(r, s3, bucket, tid)]
+
+    @app.get("/models/{model_id}")
+    def get_model(model_id: str, tid: str = Depends(tenant)) -> dict:
+        hit = registry.find_model(s3, bucket, tid, model_id)
+        if not hit:
+            raise HTTPException(404, "unknown model")
+        return tag(*hit)
+
+    @app.get("/runs")
+    def list_runs(model_id: str | None = None, dataset_id: str | None = None,
+                  tid: str = Depends(tenant)) -> list[dict]:
+        return [tag(scope, m) for scope, m in registry.list_runs(r, s3, bucket, tid)
+                if model_id in (None, m.model_id) and dataset_id in (None, m.dataset_id)]
+
+    @app.get("/runs/{run_id}")
+    def get_run(run_id: str, tid: str = Depends(tenant)) -> dict:
+        """The manifest plus the precision-recall curve."""
+        scope, run = run_of(run_id, tid)
+        results = registry._get_json(
+            s3, bucket, f"{registry.run_prefix(scope, run_id)}/results.json") or {}
+        return {**tag(scope, run), "pr_recall": results.get("pr_recall", []),
+                "pr_precision": results.get("pr_precision", [])}
+
+    @app.get("/runs/{run_id}/predictions")
+    def get_predictions(run_id: str, tid: str = Depends(tenant)) -> dict[str, list[dict]]:
+        scope, run = run_of(run_id, tid)
+        return predictions(scope, run, run_id)
+
+    @app.get("/runs/{run_id}/predictions/{file}")
+    def get_image_predictions(run_id: str, file: str, min_score: float = 0.0,
+                              tid: str = Depends(tenant)) -> list[dict]:
+        scope, run = run_of(run_id, tid)
+        boxes = predictions(scope, run, run_id).get(file)
+        if boxes is None:
+            raise HTTPException(404, "unknown image")
+        return [b for b in boxes if b["score"] >= min_score]
