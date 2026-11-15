@@ -24,6 +24,11 @@ jobs:
           IMG=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/geo-gdal:py3.12
           if docker pull -q "$IMG"; then docker tag "$IMG" geo-gdal:py3.12; else echo "not published, make up will build it"; fi
       - run: make e2e
+      - name: Browser smoke test (a real Chromium against the stack that make e2e left up)
+        run: |
+          pip install uv
+          uv run --python 3.12 --with playwright playwright install --with-deps chromium
+          make browser
       - run: make e2e-slim
       - run: make licences
       - if: failure()

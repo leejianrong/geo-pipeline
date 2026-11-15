@@ -78,9 +78,9 @@ def finetune_view(client: Client, on_model=None):
             await asyncio.sleep(POLL_SECONDS)
         await refresh()
         if body["state"] == "done":
-            message.set(f"Done: model {body['model_id']} is registered.")
             if on_model:
-                await on_model()
+                await on_model()  # the model view and Detect list it before this says so
+            message.set(f"Done: model {body['model_id']} is registered.")
         elif body["state"] == "failed":
             message.set(f"The run failed: {body['error']}")
         else:
