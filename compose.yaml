@@ -40,7 +40,9 @@ services:
     depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   trainer:
     build: {context: ., dockerfile: stages/trainer/Dockerfile}
-    environment: *env
+    environment:
+      <<: *env
+      TRAINER_DEVICE: ${TRAINER_DEVICE:-cpu}  # `make e2e` sets fake: trains nothing, for tests
     depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   postprocess:
     build: {context: ., dockerfile: stages/postprocess/Dockerfile}

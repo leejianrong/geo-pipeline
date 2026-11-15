@@ -8,6 +8,7 @@ The UI is a client of the HTTP API only (V6); see `common.py`.
 from common import Client
 from detect import MAX_UPLOAD_MB, detect_view
 from explore import explore_view
+from finetune import finetune_view
 from indah import Button, Card, Column, Session, Signal, Tabs, Text, TextInput, create_app
 from models import models_view
 
@@ -20,7 +21,13 @@ def build_session() -> Session:
     detect_cards, detect_refresh = detect_view(client)
     explore_cards, explore_refresh = explore_view(client)
     model_cards, model_refresh = models_view(client)
-    train_cards, train_refresh = train_view(client, on_registered=explore_refresh)
+    tune_cards, tune_refresh = finetune_view(client, on_model=model_refresh)
+
+    async def dataset_added() -> None:  # a new dataset shows in Explore and in the trainer's list
+        await explore_refresh()
+        await tune_refresh()
+
+    train_cards, train_refresh = train_view(client, on_registered=dataset_added)
 
     async def sign_in() -> None:
         resp = await client.request("GET", "/jobs")
@@ -31,6 +38,7 @@ def build_session() -> Session:
             await explore_refresh()
             await model_refresh()
             await train_refresh()
+            await tune_refresh()
 
     return Session(Column(children=[
         Text("# geo-pipeline\n\nDetect objects in a GeoTIFF, or explore a dataset.", markdown=True),
@@ -40,7 +48,7 @@ def build_session() -> Session:
             Text(lambda: message.value)]),
         Tabs(children=[Column(children=detect_cards),
                        Column(children=[*explore_cards, *model_cards]),
-                       Column(children=train_cards)],
+                       Column(children=[*train_cards, *tune_cards])],
              labels=["Detect", "Explore", "Train"])]))
 
 

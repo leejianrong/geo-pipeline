@@ -10,6 +10,7 @@ import queue
 import shutil
 import signal
 import subprocess
+import tempfile
 import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -199,3 +200,24 @@ def register_model(s3, r, bucket: str, job: TrainJob, dataset: registry.DatasetM
         input_size=preset.input_size, classes=dataset.classes, trained_on=job.dataset_id,
         run_id=job.job_id, licence=dataset.licence, created_at=now()), scope=job.tenant_id)
     return model_id
+
+
+def make_fake_train_fn(s3, pause: float = 0.3) -> TrainFn:
+    """A training function that trains nothing: it walks through the epochs with made-up loss and
+    AP, then registers a placeholder model. It is the seam the stack tests and the UI tests run
+    the whole flow through without a GPU (`TRAINER_DEVICE=fake`); never for a real service."""
+
+    def train(job: TrainJob, ctx: TrainContext) -> str:
+        dataset = registry.find(s3, job.bucket, job.tenant_id, job.dataset_id)[1]
+        for epoch in range(1, job.epochs + 1):
+            if ctx.cancelled():
+                raise Cancelled
+            ctx.progress(epoch, loss=round(5.0 / epoch, 3), epochs=job.epochs,
+                         val_ap=round(0.5 * epoch / job.epochs, 3))
+            time.sleep(pause)
+        with tempfile.TemporaryDirectory() as tmp:
+            onnx = Path(tmp) / "model.onnx"
+            onnx.write_bytes(b"placeholder: the fake trainer trains nothing")
+            return register_model(s3, ctx.r, job.bucket, job, dataset, onnx)
+
+    return train

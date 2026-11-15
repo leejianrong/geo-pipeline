@@ -184,15 +184,17 @@ def add_train_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None
     """Fine-tuning runs (ADR-0016). Always the caller's own; another tenant's id is a 404."""
 
     def live(run: registry.TrainRunManifest, history: bool = False) -> dict:
-        """The manifest merged with the live status (state, epoch, loss, validation AP) while the
-        run is unfinished; `history` adds the per-epoch loss and AP for the chart."""
+        """The manifest merged with the live status (epoch, loss, validation AP, and the state
+        while the run is unfinished); `history` adds the per-epoch loss and AP for the chart."""
         out = run.model_dump()
+        status = r.hgetall(f"job:{run.id}:status")  # kept for days after the run ends
+        out |= {k: float(status[k]) if k in ("loss", "val_ap") else status[k]
+                for k in ("epoch", "loss", "val_ap") if k in status}
+        out["epoch"] = int(out.get("epoch", 0))
+        if status.get("state") == "waiting":
+            out["waiting_for"] = status.get("waiting_for", "")
         if run.state == "queued":  # the manifest is final once it says anything else
-            status = r.hgetall(f"job:{run.id}:status")
-            out |= {"state": status.get("state", "queued")} | {
-                k: float(status[k]) if k in ("loss", "val_ap") else status[k]
-                for k in ("epoch", "loss", "val_ap", "waiting_for") if k in status}
-            out["epoch"] = int(out.get("epoch", 0))
+            out["state"] = status.get("state", "queued")
         if history:
             out["history"] = sorted((json.loads(v) for v in r.hgetall(
                 train.history_key(run.id)).values()), key=lambda e: e["epoch"])

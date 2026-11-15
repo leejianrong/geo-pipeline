@@ -42,7 +42,8 @@ up-slim:  ## like `up`, with the torch-free ONNX detector (about a quarter of th
 down:  ## stop the stack and delete its data
 	docker compose down -v
 
-e2e: down up  ## end-to-end tests on a fresh stack; artefacts in data/out/
+e2e: export TRAINER_DEVICE = fake
+e2e: down up  ## end-to-end tests on a fresh stack (the trainer fakes training); artefacts in data/out/
 	docker compose run --rm --build tools pytest -q -m "not slow" tests/stack
 
 e2e-slim: down up-slim  ## every model finds both cats on the torch-free detector

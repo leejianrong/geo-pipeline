@@ -76,16 +76,31 @@ def wait_for(run_id, states, timeout=60):
 
 
 def test_the_cpu_trainer_refuses_a_run_at_once_with_the_reason(dataset):
-    code, body = call("POST", f"{API}/train/runs", A, {"dataset_id": dataset, "preset": "fast"})
-    assert code == 202
-    run_id = json.loads(body)["run_id"]
-    run = wait_for(run_id, {"failed"})
-    assert "GPU trainer image" in run["error"] and run["epochs"] == 60  # the preset's default
-    status = get(f"/jobs/{run_id}")[1]
-    assert status["state"] == "error" and "make up-gpu" in status["error"]
-    assert [x["id"] for x in get("/train/runs")[1]] == [run_id]
-    assert get(f"/train/runs/{run_id}", B)[0] == 404
+    """A trainer with no training function (the small CPU image) fails a queued run at once."""
+    r, s3 = bus.connect(), store.client()
+    job = new_train_run(r, s3, BUCKET, "acme", dataset, "fast")
+    with pytest.raises(bus.PermanentError, match="GPU trainer image"):
+        handle_train(r, s3, job, None)
+    run = get(f"/train/runs/{job.job_id}")[1]
+    assert run["state"] == "failed" and "make up-gpu" in run["error"] and run["epochs"] == 60
+    assert [x["id"] for x in get("/train/runs")[1]] == [job.job_id]
+    assert get(f"/train/runs/{job.job_id}", B)[0] == 404
     assert get("/train/runs", B)[1] == []
+
+
+def test_the_fake_trainer_runs_the_whole_flow_through_the_live_stack(dataset):
+    """`make e2e` runs the trainer with TRAINER_DEVICE=fake: start, progress, a model."""
+    code, body = call(
+        "POST", f"{API}/train/runs", A, {"dataset_id": dataset, "preset": "fast", "epochs": 3}
+    )
+    assert code == 202
+    run = wait_for(json.loads(body)["run_id"], {"done"})
+    assert run["model_id"].startswith("model-") and [
+        h["epoch"] for h in get(f"/train/runs/{run['id']}")[1]["history"]
+    ] == [1, 2, 3]
+    assert run["model_id"] in [m["id"] for m in get("/models")[1]]
+    r = bus.connect()
+    r.delete("tenant:acme:models")
 
 
 def test_bad_requests_are_refused_before_anything_is_queued(dataset):

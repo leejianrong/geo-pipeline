@@ -14,15 +14,17 @@ import threading
 from geopipe import bus, store
 from geopipe.ingest import ingest
 from geopipe.messages import INGEST, TRAIN, IngestJob, TrainJob
-from geopipe.runner import make_train_fn
+from geopipe.runner import make_fake_train_fn, make_train_fn
 from geopipe.train import handle_train
 
 
 def training_function(s3):
-    """The real training function on a GPU worker, None on the CPU image."""
-    if os.environ.get("TRAINER_DEVICE") != "cuda":
-        return None
-    return make_train_fn(s3)
+    """The real training function on a GPU worker, None on the CPU image. `fake` is the test
+    seam: a function that trains nothing, so CI can run the whole flow."""
+    device = os.environ.get("TRAINER_DEVICE")
+    if device == "fake":
+        return make_fake_train_fn(s3)
+    return make_train_fn(s3) if device == "cuda" else None
 
 
 def main() -> None:
