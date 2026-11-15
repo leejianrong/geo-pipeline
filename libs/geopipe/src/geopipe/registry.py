@@ -148,6 +148,7 @@ class ModelManifest(BaseModel):
     run_id: str | None = None  # the training run that made it
     licence: str = Field(min_length=1)
     state: Literal["ready", "failed"] = "ready"
+    report: str = ""  # why an uploaded model was refused, shown to its owner
     created_at: float
 
 

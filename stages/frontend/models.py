@@ -75,7 +75,7 @@ def models_view(client: Client):
         resp = await client.request("GET", "/models")
         if resp.status_code != 200:
             return
-        models.set(resp.json())
+        models.set([m for m in resp.json() if m["state"] == "ready"])
         if models.value and not any(m["id"] == model_id.value for m in models.value):
             model_id.set(models.value[0]["id"])
         await load_model()

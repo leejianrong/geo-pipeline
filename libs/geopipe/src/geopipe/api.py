@@ -64,6 +64,11 @@ def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str])
     def create_upload(tid: str = Depends(tenant)) -> dict:
         return presigned_put(tid, f"{uuid.uuid4().hex}.tif")
 
+    @app.post("/uploads/model")
+    def create_model_upload(tid: str = Depends(tenant)) -> dict:
+        """A presigned PUT for an ONNX model; the browser sends the file straight to the store."""
+        return presigned_put(tid, f"models/{uuid.uuid4().hex}.onnx")
+
     @app.post("/uploads/dataset")
     def create_dataset_upload(tid: str = Depends(tenant)) -> dict:
         """A presigned PUT for a dataset zip; the browser sends the file straight to the store."""

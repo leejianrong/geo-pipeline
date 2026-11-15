@@ -5,6 +5,7 @@ go browser -> this server -> presigned URL; this server is the only thing that t
 API, so the browser never sees the key's presigned URLs.
 """
 
+import asyncio
 import base64
 import inspect
 import os
@@ -48,6 +49,19 @@ class Client:
         async with httpx.AsyncClient(timeout=60) as c:
             return await c.request(method, f"{API}{path}",
                                    headers={"X-API-Key": self.key.value}, **kw)
+
+
+async def wait_job(client: "Client", job_id: str, interval: float = 1.0,
+                   give_up: float = 1800.0) -> dict | None:
+    """Poll a job until it is done or failed; None if it takes longer than `give_up` seconds."""
+    spent = 0.0
+    while spent < give_up:
+        await asyncio.sleep(interval)
+        spent += interval
+        status = (await client.request("GET", f"/jobs/{job_id}")).json()
+        if status["state"] in ("done", "error"):
+            return status
+    return None
 
 
 class _OnChange:

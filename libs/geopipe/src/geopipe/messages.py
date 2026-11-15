@@ -7,6 +7,7 @@ from pydantic import BaseModel
 SCHEMA_VERSION = 1
 JOBS_IN, TILES, DETECTIONS, JOBS_DONE = "jobs:in", "tiles", "detections", "jobs:done"
 TRAIN = "train"  # fine-tuning runs (the GPU trainer image)
+MODEL_INGEST = "ingest:model"  # uploaded ONNX models to validate and register
 INGEST = "ingest"  # uploaded datasets to validate and register (trainer stage)
 JOBS_DEAD = "jobs:dead"  # messages that exhausted their retries or could not be parsed
 DEADLINES = "jobs:deadlines"  # sorted set: job id -> time after which it counts as stalled
@@ -92,3 +93,15 @@ class TrainJob(_Msg):
     dataset_id: str
     preset: str
     epochs: int
+
+
+class ModelIngestJob(_Msg):
+    """Validate an uploaded ONNX model and register it. `job_id` tracks progress."""
+
+    bucket: str
+    upload_key: str
+    model_id: str
+    name: str
+    decoder: Literal["yolox", "rfdetr"]
+    classes: list[str]
+    licence: str
