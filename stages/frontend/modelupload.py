@@ -18,9 +18,11 @@ def modelupload_view(client: Client, on_registered=None):
     outcome = Signal("")
 
     async def get_target(info: dict) -> dict:
-        resp = await client.request("POST", "/uploads/model")
+        resp = await client.request("POST", "/uploads/model", json={"size": info["size"]})
         if resp.status_code != 200:
-            raise RuntimeError(f"could not start the upload ({resp.status_code})")
+            reason = resp.json().get("detail", resp.status_code)
+            message.set(f"Cannot upload {info['filename']}: {reason}")
+            raise RuntimeError(reason)
         body = resp.json()
         upload_key.set(body["key"])
         return {"url": body["upload_url"]}

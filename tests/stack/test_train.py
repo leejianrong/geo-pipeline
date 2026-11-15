@@ -23,7 +23,7 @@ async def test_the_train_tab_gets_a_target_and_reports_a_finished_upload():
     upload = labelled(session, "directupload", "Dataset zip")
     assert value(upload, "target") is None
 
-    await send(session, upload, "pick", {"filename": "d.zip", "size": 9, "content_type": ""})
+    await send(session, upload, "pick", {"filename": "d.zip", "size": 10, "content_type": ""})
     target = value(upload, "target")
     assert "/tenants/acme/uploads/datasets/" in target["url"]
 

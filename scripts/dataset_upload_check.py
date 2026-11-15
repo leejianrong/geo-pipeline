@@ -60,10 +60,11 @@ def main(size_mb: int) -> None:
         page.get_by_label("API key").fill("dev-key-a")
         page.get_by_role("button", name="Sign in").click()
         page.get_by_role("tab", name="Train").click()
-        page.locator("input[type=file]").last.set_input_files(str(tmp))
+        page.get_by_label("Dataset zip").set_input_files(str(tmp))
+        bar = page.locator(".upload", has=page.get_by_label("Dataset zip")).locator("progress")
         seen = set()
         for _ in range(600):
-            value = page.locator("progress").last.get_attribute("value")
+            value = bar.get_attribute("value")
             if value:
                 seen.add(int(value))
             if page.get_by_text("Uploaded dataset.zip").count() > 1:

@@ -101,7 +101,7 @@ def coco(names, boxes):
 
 def ingest(data: bytes, key=A):
     """Upload through a presigned URL and queue it, the way the browser does."""
-    _, body = call("POST", f"{API}/uploads/dataset", key)
+    _, body = call("POST", f"{API}/uploads/dataset", key, {"size": len(data)})
     up = json.loads(body)
     assert call("PUT", up["upload_url"], data=data)[0] == 200
     code, body = call("POST", f"{API}/datasets", key, {**FORM, "upload_key": up["key"]})

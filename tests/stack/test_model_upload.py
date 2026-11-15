@@ -88,7 +88,7 @@ def forget_models():
 
 
 def upload_and_register(data: bytes, key=A, **form):
-    _, body = call("POST", f"{API}/uploads/model", key)
+    _, body = call("POST", f"{API}/uploads/model", key, {"size": len(data)})
     up = json.loads(body)
     assert call("PUT", up["upload_url"], data=data)[0] == 200
     code, body = call("POST", f"{API}/models", key, {**FORM, **form, "upload_key": up["key"]})
@@ -141,7 +141,7 @@ def test_only_your_own_model_uploads_can_be_registered_and_the_form_is_checked()
     assert call("POST", f"{API}/models", A, {**FORM, "upload_key": ok, "classes": []})[0] == 422
     assert call("POST", f"{API}/models", A, {**FORM, "upload_key": ok, "decoder": "x"})[0] == 422
     assert call("POST", f"{API}/models", A, {**FORM, "upload_key": ok, "licence": ""})[0] == 422
-    assert call("POST", f"{API}/uploads/model")[0] == 401
+    assert call("POST", f"{API}/uploads/model", None, {"size": 1})[0] == 401
 
 
 def test_a_missing_upload_fails_at_once():
