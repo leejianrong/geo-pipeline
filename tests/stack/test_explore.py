@@ -93,7 +93,7 @@ async def test_explore_shows_images_boxes_statistics_and_attribution(datasets):
         if "text" in t.reactive_props()
     )  # the boxes-per-image caption
 
-    overlay = nodes(session, "imageoverlay")[-1]  # the Explore tab's, after Detect's
+    overlay = nodes(session, "imageoverlay")[1]  # the Explore tab's, after Detect's
     assert value(overlay, "src").startswith("data:image/png;base64,")
     assert len(value(overlay, "boxes")) == 3  # t1.png's annotation count
     assert all(0 <= b["x"] <= 1 and 0 < b["w"] <= 1 for b in value(overlay, "boxes"))
