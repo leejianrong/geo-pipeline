@@ -38,6 +38,15 @@ def dataset(tmp_path_factory):
     r.delete("tenant:acme:datasets", "tenant:acme:trainruns", "tenant:acme:models")
 
 
+def runs_table(session):
+    """The "Your runs" table: Detect's and the benchmark's tables have other columns."""
+    return next(
+        t
+        for t in nodes(session, "table")
+        if any(c["title"] == "preset" for c in t.static_props()["columns"])
+    )
+
+
 def texts(session):
     return [str(value(t, "text")) for t in nodes(session, "text") if "text" in t.reactive_props()]
 
@@ -67,7 +76,7 @@ async def test_a_run_shows_progress_ends_in_a_model_and_it_reaches_the_model_vie
     assert [len(value(c, "data")) for c in loss] == [3, 3]  # loss and AP, one point per epoch
     assert value(nodes(session, "progress")[-1], "value") == 1.0
     assert any("epoch 3/3" in t and "validation AP50 0.500" in t for t in texts(session))
-    table = nodes(session, "table")[-1]
+    table = runs_table(session)
     assert [(r["state"], r["model"]) for r in value(table, "rows")] == [("done", model_id)]
     options = value(labelled(session, "select", "Inspect model"), "options")
     assert model_id in [o["value"] if isinstance(o, dict) else o for o in options]
@@ -89,7 +98,7 @@ async def test_cancel_stops_a_run_in_progress():
     await send(session, cancel, "click")
     await asyncio.wait_for(start, 30)
     assert "The run was cancelled." in texts(session)
-    rows = value(nodes(session, "table")[-1], "rows")
+    rows = value(runs_table(session), "rows")
     cancelled = [r for r in rows if r["state"] == "cancelled"]  # not rows[0]: the clock can step
     assert len(cancelled) == 1 and cancelled[0]["model"] == ""
 
@@ -100,7 +109,7 @@ async def test_another_tenant_is_not_offered_the_dataset_and_never_sees_the_runs
     await sign_in(session, "dev-key-b")
     options = value(labelled(session, "select", "Training dataset"), "options")
     assert "ft-data" not in [o["value"] if isinstance(o, dict) else o for o in options]
-    assert value(nodes(session, "table")[-1], "rows") == []
+    assert value(runs_table(session), "rows") == []
 
 
 @pytest.mark.asyncio
