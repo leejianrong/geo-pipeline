@@ -6,6 +6,7 @@ which image is needed, so a user never waits for a run that cannot start.
 """
 
 import contextlib
+import json
 import threading
 import time
 from collections.abc import Callable
@@ -21,6 +22,22 @@ NEEDS_GPU = ("training needs the GPU trainer image (`make up-gpu` on a machine w
              "GPU). This trainer is the small CPU image, which only validates datasets.")
 
 
+class Cancelled(Exception):
+    """The owner stopped the run."""
+
+
+def cancel_key(run_id: str) -> str:
+    return f"train:{run_id}:cancel"
+
+
+def history_key(run_id: str) -> str:
+    return f"train:{run_id}:history"
+
+
+def request_cancel(r, run_id: str) -> None:
+    r.set(cancel_key(run_id), "1", ex=86400)  # outlives a queued run that starts later
+
+
 @dataclass
 class TrainContext:
     """What a training function may do besides train."""
@@ -28,11 +45,19 @@ class TrainContext:
     r: object
     job: TrainJob
 
-    def progress(self, epoch: int, val_ap: float | None = None, **fields) -> None:
-        """Record an epoch (and the validation AP, when there is one) in the run's status."""
-        extra = {} if val_ap is None else {"val_ap": val_ap}
-        bus.set_status(self.r, self.job.job_id, "running", epoch=epoch, **extra, **fields)
-        bus.touch(self.r, self.job.job_id)
+    def progress(self, epoch: int, val_ap: float | None = None, loss: float | None = None,
+                 **fields) -> None:
+        """Record an epoch in the run's status and its per-epoch history (for the loss chart)."""
+        r, run_id = self.r, self.job.job_id
+        entry = json.loads(r.hget(history_key(run_id), str(epoch)) or "{}") | {"epoch": epoch}
+        known = {"val_ap": val_ap, "loss": loss}
+        entry |= {k: v for k, v in known.items() if v is not None}
+        r.hset(history_key(run_id), str(epoch), json.dumps(entry))
+        r.expire(history_key(run_id), bus.STATUS_TTL)
+        bus.set_status(r, run_id, "running", **entry, **fields)
+
+    def cancelled(self) -> bool:
+        return bool(self.r.get(cancel_key(self.job.job_id)))
 
 
 TrainFn = Callable[[TrainJob, TrainContext], str]  # returns the id of the registered model
@@ -47,6 +72,8 @@ def training_slot(r, tenant_id: str, run_id: str, poll: float = SLOT_POLL_S):
     """At most one training per tenant: wait for the slot, hold it (refreshed), then free it."""
     key = slot_key(tenant_id)
     while not r.set(key, run_id, nx=True, ex=SLOT_TTL_S):
+        if r.get(cancel_key(run_id)):
+            raise Cancelled
         if r.get(key) == run_id:  # a retry of this very run, after a worker died
             r.expire(key, SLOT_TTL_S)
             break
@@ -80,13 +107,19 @@ def handle_train(r, s3, job: TrainJob, train_fn: TrainFn | None, *, poll: float 
             raise bus.PermanentError("the dataset is gone or is not ready")
         if train_fn is None:
             raise bus.PermanentError(NEEDS_GPU)
+        if r.get(cancel_key(job.job_id)):
+            raise Cancelled
         with training_slot(r, job.tenant_id, job.job_id, poll):
             bus.set_status(r, job.job_id, "running", tenant_id=job.tenant_id, epoch=0)
-            bus.touch(r, job.job_id)
             model_id = train_fn(job, TrainContext(r, job))
         registry.write_train_run(s3, r, job.bucket, job.tenant_id, run.model_copy(
             update={"state": "done", "model_id": model_id}))
         bus.set_status(r, job.job_id, "done", tenant_id=job.tenant_id, model_id=model_id)
+    except Cancelled:
+        registry.write_train_run(s3, r, job.bucket, job.tenant_id, run.model_copy(
+            update={"state": "cancelled"}))
+        bus.set_status(r, job.job_id, "cancelled", tenant_id=job.tenant_id)
+        r.zrem(bus.DEADLINES, job.job_id)
     except bus.PermanentError as e:
         registry.write_train_run(s3, r, job.bucket, job.tenant_id, run.model_copy(
             update={"state": "failed", "error": str(e)}))

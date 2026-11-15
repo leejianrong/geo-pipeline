@@ -16,11 +16,12 @@ def main() -> None:
     p.add_argument("--out")
     p.add_argument("--epochs", type=int, default=20)
     p.add_argument("--batch-size", type=int, default=8)
+    p.add_argument("--classes", default="building", help="comma-separated class names")
     a = p.parse_args()
     out = a.out or "/data/models/rfdetr-spacenet" + ("-nano" if a.variant == "Nano" else "")
     model = getattr(rfdetr, f"RFDETR{a.variant}")()
     model.train(dataset_dir=a.data, output_dir=out, epochs=a.epochs, batch_size=a.batch_size,
-                class_names=["building"], tensorboard=False)
+                class_names=a.classes.split(","), tensorboard=False)
 
 
 if __name__ == "__main__":

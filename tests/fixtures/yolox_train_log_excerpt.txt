@@ -1,0 +1,73 @@
+    (l1_loss): L1Loss()
+    (bcewithlog_loss): BCEWithLogitsLoss()
+    (iou_loss): IOUloss()
+  )
+)
+2026-11-14 09:24:06.015 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch1
+2026-11-14 09:24:38.233 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 1/60, iter: 10/15, mem: 1117Mb, iter_time: 3.221s, data_time: 0.004s, total_loss: 10.5, iou_loss: 3.1, l1_loss: 0.0, conf_loss: 4.9, cls_loss: 2.4, lr: 4.444e-05, size: 416, ETA: 0:47:46
+2026-11-14 09:24:39.392 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:24:39.485 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch2
+2026-11-14 09:25:09.473 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 2/60, iter: 10/15, mem: 1117Mb, iter_time: 2.998s, data_time: 0.002s, total_loss: 6.6, iou_loss: 3.1, l1_loss: 0.0, conf_loss: 2.4, cls_loss: 1.1, lr: 2.778e-04, size: 352, ETA: 0:36:56
+2026-11-14 09:25:10.588 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:25:10.672 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch3
+2026-11-14 09:25:41.781 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 3/60, iter: 10/15, mem: 1117Mb, iter_time: 3.110s, data_time: 0.002s, total_loss: 5.6, iou_loss: 2.8, l1_loss: 0.0, conf_loss: 2.1, cls_loss: 0.7, lr: 7.111e-04, size: 384, ETA: 0:34:14
+2026-11-14 09:25:42.911 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:25:42.986 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch4
+2026-11-14 09:25:45.136 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 4/60, iter: 10/15, mem: 1117Mb, iter_time: 0.214s, data_time: 0.002s, total_loss: 4.9, iou_loss: 2.6, l1_loss: 0.0, conf_loss: 1.7, cls_loss: 0.6, lr: 1.344e-03, size: 384, ETA: 0:25:18
+2026-11-14 09:25:46.277 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:25:46.357 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch5
+2026-11-14 09:26:16.088 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 5/60, iter: 10/15, mem: 1642Mb, iter_time: 2.973s, data_time: 0.002s, total_loss: 5.0, iou_loss: 2.5, l1_loss: 0.0, conf_loss: 1.8, cls_loss: 0.6, lr: 2.178e-03, size: 512, ETA: 0:25:37
+2026-11-14 09:26:17.267 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:26:52.114 +00:00 | INFO     | yolox.evaluators.coco_evaluator:evaluate_prediction:235 - Evaluate in main process...
+2026-11-14 09:26:52.193 +00:00 | INFO     | yolox.evaluators.coco_evaluator:evaluate_prediction:268 - Loading and preparing results...
+2026-11-14 09:26:52.219 +00:00 | INFO     | yolox.evaluators.coco_evaluator:evaluate_prediction:268 - DONE (t=0.03s)
+2026-11-14 09:26:52.219 +00:00 | INFO     | pycocotools.coco:loadRes:367 - creating index...
+2026-11-14 09:26:52.221 +00:00 | INFO     | pycocotools.coco:loadRes:367 - index created!
+2026-11-14 09:27:00.987 +00:00 | INFO     | yolox.layers.jit_ops:jit_load:111 - Load fast_cocoeval op in 8.755s.
+2026-11-14 09:27:01.045 +00:00 | INFO     | yolox.core.trainer:evaluate_and_save_model:342 - 
+Average forward time: 1092.74 ms, Average NMS time: 13.18 ms, Average inference time: 1105.93 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.088
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.293
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.023
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.028
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.146
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.058
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.008
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.065
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.206
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.102
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.312
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.125
+
+2026-11-14 09:27:01.045 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:27:01.660 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:27:02.173 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch6
+2026-11-14 09:27:04.802 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 6/60, iter: 10/15, mem: 1642Mb, iter_time: 0.262s, data_time: 0.002s, total_loss: 4.9, iou_loss: 2.5, l1_loss: 0.0, conf_loss: 1.9, cls_loss: 0.6, lr: 2.499e-03, size: 384, ETA: 0:21:19
+2026-11-14 09:27:05.992 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:27:06.067 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch7
+2026-11-14 09:27:39.244 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 7/60, iter: 10/15, mem: 1642Mb, iter_time: 3.317s, data_time: 0.002s, total_loss: 5.7, iou_loss: 2.6, l1_loss: 0.0, conf_loss: 2.5, cls_loss: 0.6, lr: 2.492e-03, size: 448, ETA: 0:22:22
+2026-11-14 09:28:10.389 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:28:10.482 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch8
+2026-11-14 09:28:43.820 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 8/60, iter: 10/15, mem: 1642Mb, iter_time: 3.333s, data_time: 0.002s, total_loss: 5.1, iou_loss: 2.8, l1_loss: 0.0, conf_loss: 1.7, cls_loss: 0.6, lr: 2.479e-03, size: 288, ETA: 0:26:25
+2026-11-14 09:28:44.902 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:28:44.979 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch9
+2026-11-14 09:28:46.353 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 9/60, iter: 10/15, mem: 1642Mb, iter_time: 0.136s, data_time: 0.002s, total_loss: 4.6, iou_loss: 2.4, l1_loss: 0.0, conf_loss: 1.6, cls_loss: 0.6, lr: 2.461e-03, size: 448, ETA: 0:23:10
+2026-11-14 09:28:47.466 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:28:47.549 +00:00 | INFO     | yolox.core.trainer:before_epoch:203 - ---> start train epoch10
+2026-11-14 09:28:49.848 +00:00 | INFO     | yolox.core.trainer:after_iter:253 - epoch: 10/60, iter: 10/15, mem: 1642Mb, iter_time: 0.229s, data_time: 0.002s, total_loss: 4.9, iou_loss: 2.6, l1_loss: 0.0, conf_loss: 1.6, cls_loss: 0.6, lr: 2.438e-03, size: 352, ETA: 0:20:39
+2026-11-14 09:28:50.987 +00:00 | INFO     | yolox.core.trainer:save_ckpt:352 - Save weights to /data/models/yolox-spacenet-tiny-416
+2026-11-14 09:28:51.537 +00:00 | INFO     | yolox.evaluators.coco_evaluator:evaluate_prediction:235 - Evaluate in main process...
+2026-11-14 09:28:51.609 +00:00 | INFO     | yolox.evaluators.coco_evaluator:evaluate_prediction:268 - Loading and preparing results...
+2026-11-14 09:28:51.633 +00:00 | INFO     | yolox.evaluators.coco_evaluator:evaluate_prediction:268 - DONE (t=0.02s)
+2026-11-14 09:28:51.633 +00:00 | INFO     | pycocotools.coco:loadRes:367 - creating index...
+2026-11-14 09:28:51.635 +00:00 | INFO     | pycocotools.coco:loadRes:367 - index created!
+2026-11-14 09:28:51.636 +00:00 | INFO     | yolox.layers.jit_ops:jit_load:111 - Load fast_cocoeval op in 0.001s.
+2026-11-14 09:28:51.670 +00:00 | INFO     | yolox.core.trainer:evaluate_and_save_model:342 - 
+Average forward time: 1.87 ms, Average NMS time: 2.41 ms, Average inference time: 4.28 ms
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.099
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.304
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.031
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.035
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.168
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.061
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.012

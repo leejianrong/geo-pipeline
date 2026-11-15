@@ -48,9 +48,10 @@ def submit_ingest(r: redis.Redis, bucket: str, tenant_id: str, upload_key: str, 
     return job_id
 
 
-def submit_train(r: redis.Redis, s3, bucket: str, tenant_id: str, dataset_id: str, preset: str,
-                 epochs: int | None = None) -> str:
-    """Queue a fine-tuning run; returns its id. Raises ValueError for a bad request."""
+def new_train_run(r: redis.Redis, s3, bucket: str, tenant_id: str, dataset_id: str, preset: str,
+                  epochs: int | None = None) -> TrainJob:
+    """Check a training request and record the run (manifest and status), without queuing it.
+    Raises ValueError for a bad request."""
     if preset not in PRESETS:
         raise ValueError(f"unknown preset {preset!r}; choose one of {', '.join(PRESETS)}")
     epochs = epochs or PRESETS[preset].epochs
@@ -59,11 +60,20 @@ def submit_train(r: redis.Redis, s3, bucket: str, tenant_id: str, dataset_id: st
     hit = registry.find(s3, bucket, tenant_id, dataset_id)
     if not hit or hit[1].state != "ready":
         raise ValueError("unknown dataset, or it is not ready")
+    if "train" not in hit[1].splits or not {"valid", "test"} & set(hit[1].splits):
+        raise ValueError("the dataset needs a train split and a valid or test split")
     run_id = f"train-{uuid.uuid4().hex[:12]}"
     registry.write_train_run(s3, r, bucket, tenant_id, registry.TrainRunManifest(
         id=run_id, dataset_id=dataset_id, preset=preset, epochs=epochs, created_at=time.time()))
     set_status(r, run_id, "queued", submitted_at=time.time(), tenant_id=tenant_id, kind="train",
                dataset_id=dataset_id, preset=preset, epoch=0, epochs=epochs)
-    publish(r, TRAIN, TrainJob(tenant_id=tenant_id, job_id=run_id, bucket=bucket,
-                               dataset_id=dataset_id, preset=preset, epochs=epochs))
-    return run_id
+    return TrainJob(tenant_id=tenant_id, job_id=run_id, bucket=bucket, dataset_id=dataset_id,
+                    preset=preset, epochs=epochs)
+
+
+def submit_train(r: redis.Redis, s3, bucket: str, tenant_id: str, dataset_id: str, preset: str,
+                 epochs: int | None = None) -> str:
+    """Queue a fine-tuning run for the trainer; returns its id."""
+    job = new_train_run(r, s3, bucket, tenant_id, dataset_id, preset, epochs)
+    publish(r, TRAIN, job)
+    return job.job_id

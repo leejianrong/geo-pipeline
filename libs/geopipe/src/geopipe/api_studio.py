@@ -4,6 +4,7 @@ A tenant sees its own datasets and the shared ones, and nothing else. Ids and fi
 checked against strict patterns because they become object keys.
 """
 
+import json
 import re
 import uuid
 from collections.abc import Callable
@@ -11,7 +12,7 @@ from collections.abc import Callable
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from . import ingest, registry, store
+from . import ingest, registry, store, train
 from .jobs import submit_ingest, submit_train
 from .presets import MAX_EPOCHS, PRESETS
 
@@ -182,11 +183,20 @@ def add_model_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None
 def add_train_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None:
     """Fine-tuning runs (ADR-0016). Always the caller's own; another tenant's id is a 404."""
 
-    def live(run: registry.TrainRunManifest) -> dict:
-        """The manifest merged with the live status (state, epoch, validation AP)."""
-        status = r.hgetall(f"job:{run.id}:status") if run.state == "queued" else {}
-        return {**run.model_dump(), **({"state": status["state"], "epoch": status.get("epoch"),
-                "val_ap": status.get("val_ap")} if status else {})}
+    def live(run: registry.TrainRunManifest, history: bool = False) -> dict:
+        """The manifest merged with the live status (state, epoch, loss, validation AP) while the
+        run is unfinished; `history` adds the per-epoch loss and AP for the chart."""
+        out = run.model_dump()
+        if run.state == "queued":  # the manifest is final once it says anything else
+            status = r.hgetall(f"job:{run.id}:status")
+            out |= {"state": status.get("state", "queued")} | {
+                k: float(status[k]) if k in ("loss", "val_ap") else status[k]
+                for k in ("epoch", "loss", "val_ap", "waiting_for") if k in status}
+            out["epoch"] = int(out.get("epoch", 0))
+        if history:
+            out["history"] = sorted((json.loads(v) for v in r.hgetall(
+                train.history_key(run.id)).values()), key=lambda e: e["epoch"])
+        return out
 
     @app.get("/train/presets")
     def presets() -> list[dict]:
@@ -209,4 +219,15 @@ def add_train_routes(app: FastAPI, r, s3, bucket: str, tenant: Callable) -> None
         run = registry.find_train_run(s3, bucket, tid, run_id)
         if run is None:
             raise HTTPException(404, "unknown run")
-        return live(run)
+        return live(run, history=True)
+
+    @app.post("/train/runs/{run_id}/cancel", status_code=202)
+    def cancel_run(run_id: str, tid: str = Depends(tenant)) -> dict:
+        """Stop a queued, waiting or running run; the trainer does it within a few seconds."""
+        run = registry.find_train_run(s3, bucket, tid, run_id)
+        if run is None:
+            raise HTTPException(404, "unknown run")
+        if run.state != "queued":
+            raise HTTPException(409, f"the run already ended ({run.state})")
+        train.request_cancel(r, run_id)
+        return {"run_id": run_id, "cancelling": True}
