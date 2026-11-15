@@ -223,3 +223,34 @@ def write_run(s3, r, bucket: str, run: RunManifest, scored: dict, predictions: l
                   ContentType="application/json")
     r.zadd(f"runs:{SHARED}" if scope == SHARED else f"tenant:{scope}:runs",
            {run.id: run.created_at})
+
+
+def _find(s3, bucket: str, tenant: str, item_id: str, prefix_of, cls):
+    if not ID_RE.match(item_id):
+        return None
+    for scope in (tenant, SHARED):
+        raw = _get_json(s3, bucket, f"{prefix_of(scope, item_id)}/manifest.json")
+        if raw:
+            return scope, cls.model_validate(raw)
+    return None
+
+
+def find_model(s3, bucket: str, tenant: str, model_id: str) -> tuple[str, ModelManifest] | None:
+    return _find(s3, bucket, tenant, model_id, model_prefix, ModelManifest)
+
+
+def find_run(s3, bucket: str, tenant: str, run_id: str) -> tuple[str, RunManifest] | None:
+    return _find(s3, bucket, tenant, run_id, run_prefix, RunManifest)
+
+
+def list_models(r, s3, bucket: str, tenant: str) -> list[tuple[str, ModelManifest]]:
+    """Shared models, then the tenant's own."""
+    return [hit for scope in (SHARED, tenant) for mid in r.zrange(
+        f"models:{SHARED}" if scope == SHARED else f"tenant:{scope}:models", 0, -1)
+        if (hit := find_model(s3, bucket, tenant, mid)) and hit[0] == scope]
+
+
+def list_runs(r, s3, bucket: str, tenant: str) -> list[tuple[str, RunManifest]]:
+    return [hit for scope in (SHARED, tenant) for rid in r.zrange(
+        f"runs:{SHARED}" if scope == SHARED else f"tenant:{scope}:runs", 0, -1)
+        if (hit := find_run(s3, bucket, tenant, rid)) and hit[0] == scope]

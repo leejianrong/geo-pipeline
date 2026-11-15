@@ -274,3 +274,51 @@ def test_builtin_models_are_registered_and_all_name_real_detector_backends():
         )
         assert m.backend in BACKENDS and m.trained_on == "spacenet-khartoum"
         assert m.classes == ["building"] and m.licence
+
+
+def put_run(s3, r, scope, run_id, dataset_id="demo"):
+    run = registry.RunManifest(
+        id=run_id, model_id="m1", dataset_id=dataset_id, split="test", scorer="pipeline",
+        conf=0.05, iou=0.65, created_at=3.0, metrics={"map": 0.5})
+    preds = [
+        {"image_id": 1, "category_id": 1, "bbox": [5, 5, 20, 20], "score": 0.9},
+        {"image_id": 1, "category_id": 1, "bbox": [1, 1, 4, 4], "score": 0.2},
+    ]
+    registry.write_run(
+        s3, r, BUCKET, run, {"pr_recall": [0.0, 1.0], "pr_precision": [1.0, 0.5]}, preds, scope)
+
+
+def test_models_and_runs_are_visible_to_their_owner_and_shared_ones_to_everyone(world):
+    s3, r, _ = world
+    registry.register_builtin_models(s3, r, BUCKET, "demo", now=lambda: 1.0)
+    own = registry.ModelManifest(
+        id="mine", name="Mine", decoder="yolox", input_size=416, classes=["building"],
+        licence="MIT", created_at=2.0)
+    registry.register_model(s3, r, BUCKET, own, scope="acme")
+    put_run(s3, r, "shared", "run-s")
+    put_run(s3, r, "acme", "run-a")
+    c = api(s3, r)
+    ids = lambda path, h: [x["id"] for x in c.get(path, headers=h).json()]  # noqa: E731
+    assert "mine" in ids("/models", A) and "yolox-tiny-buildings" in ids("/models", A)
+    assert "mine" not in ids("/models", B) and "yolox-tiny-buildings" in ids("/models", B)
+    assert c.get("/models/mine", headers=B).status_code == 404
+    assert ids("/runs", A) == ["run-s", "run-a"] and ids("/runs", B) == ["run-s"]
+    assert ids("/runs?model_id=other", A) == []
+    for path in ("/runs/run-a", "/runs/run-a/predictions", "/runs/run-a/predictions/c.png"):
+        assert c.get(path, headers=B).status_code == 404
+        assert c.get(path, headers=A).status_code == 200
+    assert c.get("/runs/..%2Fx", headers=A).status_code == 404
+
+
+def test_a_run_returns_its_curve_and_predictions_by_image(world):
+    s3, r, _ = world
+    put_run(s3, r, "shared", "run-s")
+    c = api(s3, r)
+    got = c.get("/runs/run-s", headers=A).json()
+    assert got["pr_recall"] == [0.0, 1.0] and got["metrics"] == {"map": 0.5}
+    assert got["scope"] == "shared"
+    every = c.get("/runs/run-s/predictions", headers=A).json()
+    assert [len(v) for v in every.values()] == [2] and list(every) == ["c.png"]
+    one = c.get("/runs/run-s/predictions/c.png?min_score=0.5", headers=A).json()
+    assert one == [{"bbox": [5, 5, 20, 20], "score": 0.9}]
+    assert c.get("/runs/run-s/predictions/nope.png", headers=A).status_code == 404

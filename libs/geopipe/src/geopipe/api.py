@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from . import store
-from .api_studio import add_dataset_routes
+from .api_studio import add_dataset_routes, add_model_routes
 from .jobs import submit_job
 from .messages import Options
 from .registry import SHARED
@@ -52,6 +52,7 @@ def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str])
         return status
 
     add_dataset_routes(app, r, s3, public_s3, bucket, tenant)
+    add_model_routes(app, r, s3, bucket, tenant)
 
     @app.get("/health")
     def health() -> dict:
