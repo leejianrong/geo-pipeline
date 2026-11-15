@@ -94,7 +94,7 @@ publish-model:  ## stage YOLOX-tiny and its model card for Hugging Face (REPO=us
 
 quantise:  ## INT8-quantise a fine-tuned YOLOX (RUN=yolox-spacenet-tiny-416) -> data/models/$(RUN)/yolox_buildings_int8.onnx
 	docker build -q -t geo-train -f train/Dockerfile .
-	docker run --rm -v "$$PWD/data:/data" -v "$$PWD/scripts:/scripts:ro" -v "$$PWD/stages/detector:/app:ro" \
+	docker run --rm -v "$$PWD/data:/data" -v "$$PWD/scripts:/scripts:ro" -v "$$PWD/libs/geopipe/src:/geopipe-src:ro" -e PYTHONPATH=/geopipe-src \
 	  --entrypoint python geo-train /scripts/quantise_onnx.py /data/models/$(RUN)/yolox_buildings.onnx \
 	  /data/models/$(RUN)/yolox_buildings_int8.onnx
 

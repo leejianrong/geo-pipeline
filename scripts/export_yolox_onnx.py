@@ -1,7 +1,7 @@
 """Export a fine-tuned YOLOX checkpoint to ONNX with the raw head output (1, anchors, 5 + classes).
 
 YOLOX's own exporter calls `torch.onnx._export`, which current torch no longer has. The decode
-(grid offsets, NMS) stays outside the graph, in stages/detector/yolox_onnx.py.
+(grid offsets, NMS) stays outside the graph, in libs/geopipe/src/geopipe/yolox_onnx.py.
 """
 
 import argparse

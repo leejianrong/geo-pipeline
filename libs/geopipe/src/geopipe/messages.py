@@ -8,6 +8,7 @@ SCHEMA_VERSION = 1
 JOBS_IN, TILES, DETECTIONS, JOBS_DONE = "jobs:in", "tiles", "detections", "jobs:done"
 TRAIN = "train"  # fine-tuning runs (the GPU trainer image)
 MODEL_INGEST = "ingest:model"  # uploaded ONNX models to validate and register
+BENCH = "bench"  # score a registered model on a dataset split (trainer stage)
 INGEST = "ingest"  # uploaded datasets to validate and register (trainer stage)
 JOBS_DEAD = "jobs:dead"  # messages that exhausted their retries or could not be parsed
 DEADLINES = "jobs:deadlines"  # sorted set: job id -> time after which it counts as stalled
@@ -105,3 +106,15 @@ class ModelIngestJob(_Msg):
     decoder: Literal["yolox", "rfdetr"]
     classes: list[str]
     licence: str
+
+
+class BenchJob(_Msg):
+    """Score a registered model on one split of a dataset, in process. `job_id` tracks progress."""
+
+    bucket: str
+    model_id: str
+    dataset_id: str
+    split: str
+    limit: int | None = None  # score only the first N annotated images
+    conf: float = 0.05  # detections are kept from this score (needed for mAP)
+    iou: float = 0.65  # NMS across tile seams, as `geopipe bench`

@@ -8,11 +8,11 @@ the model's input size (640 for -s, 416 for nano and tiny) with grey padding, BG
 from functools import cache
 
 import numpy as np
-from backends import onnx_session
 from PIL import Image
 
-from geopipe.merge import nms
-from geopipe.messages import Box
+from .merge import nms
+from .messages import Box
+from .onnx_runtime import onnx_session
 
 SIZE = (640, 640)
 STRIDES = (8, 16, 32)

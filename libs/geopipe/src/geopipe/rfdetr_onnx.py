@@ -6,10 +6,10 @@ sigmoid scores, with boxes given as normalised centre/size.
 """
 
 import numpy as np
-from backends import onnx_session
-from yolox_onnx import COCO80
 
-from geopipe.messages import Box
+from .messages import Box
+from .onnx_runtime import onnx_session
+from .yolox_onnx import COCO80
 
 MEAN = np.array([0.485, 0.456, 0.406], np.float32)[:, None, None]
 STD = np.array([0.229, 0.224, 0.225], np.float32)[:, None, None]

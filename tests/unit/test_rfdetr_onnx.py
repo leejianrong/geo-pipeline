@@ -1,11 +1,8 @@
-import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parents[2] / "stages" / "detector"))
-from rfdetr_onnx import COCO_IDS, COCO_NAMES, preprocess, rfdetr_boxes  # noqa: E402
+from geopipe.rfdetr_onnx import COCO_IDS, COCO_NAMES, preprocess, rfdetr_boxes  # noqa: E402
 
 
 def outputs(*queries, classes=91):

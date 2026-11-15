@@ -12,8 +12,18 @@ import socket
 import threading
 
 from geopipe import bus, store
+from geopipe.bench_job import handle_bench
 from geopipe.ingest import ingest
-from geopipe.messages import INGEST, MODEL_INGEST, TRAIN, IngestJob, ModelIngestJob, TrainJob
+from geopipe.messages import (
+    BENCH,
+    INGEST,
+    MODEL_INGEST,
+    TRAIN,
+    BenchJob,
+    IngestJob,
+    ModelIngestJob,
+    TrainJob,
+)
 from geopipe.model_ingest import ingest_model
 from geopipe.runner import make_fake_train_fn, make_train_fn
 from geopipe.train import handle_train
@@ -36,6 +46,8 @@ def main() -> None:
         r, TRAIN, "trainer", me, TrainJob, lambda j: handle_train(r, s3, j, train_fn))).start()
     threading.Thread(target=bus.consume, daemon=True, args=(
         r, MODEL_INGEST, "trainer", me, ModelIngestJob, lambda j: ingest_model(r, s3, j))).start()
+    threading.Thread(target=bus.consume, daemon=True, args=(
+        r, BENCH, "trainer", me, BenchJob, lambda j: handle_bench(r, s3, j))).start()
     bus.consume(r, INGEST, "trainer", me, IngestJob, lambda j: ingest(r, s3, j))
 
 
