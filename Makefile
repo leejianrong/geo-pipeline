@@ -1,4 +1,4 @@
-.PHONY: register-builtin publish-model up-slim e2e-slim export-rfdetr quantise help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences hooks
+.PHONY: browser register-builtin publish-model up-slim e2e-slim export-rfdetr quantise help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
 UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pycocotools --with pytest --with ruff --with fastapi --with httpx --with onnx --with onnxruntime
@@ -21,6 +21,9 @@ test:  ## fast tests (no Docker)
 	$(UV_RUN) pytest -q tests/unit
 
 check: lint test  ## what the pre-push hook runs
+
+browser:  ## smoke test of the web UI in a real Chromium (stack must be up; see tests/browser)
+	uv run --python $(PY) --with playwright --with pillow --with pytest python -m pytest -q tests/browser
 
 up:  ## start valkey, seaweedfs and the three stages
 	docker image inspect geo-gdal:py3.12 >/dev/null 2>&1 || \
