@@ -505,6 +505,8 @@ Requirements RS1 to RS8 are in `PLAN.md`. Order: the riskiest unknown first (S0)
 
 **Delivers:** RS5
 
+**Progress:** GEO-71 and GEO-72 done: a job can name `user:<model id>`; `stages/detector/user_models.py` looks the id up for the job's tenant (its own models, then shared; another tenant's id fails permanently as `unknown model`), downloads `tenants/<tid>/models/<id>/model.onnx`, builds an ONNX Runtime backend by the manifest's decoder (YOLOX or RF-DETR) and keeps at most three, evicting the least recently used. It is pure ONNX Runtime and numpy, so it runs on both detector images (the Dockerfiles copy `rfdetr_onnx.py` and `user_models.py` into both; `make e2e-slim` runs the user-model stack tests too). The stack test registers a model made of a constant ONNX graph (a stand-in for a trained one, deterministic) and runs a real job through the live detector: one box where the graph puts it, georeferenced; another tenant's job fails. The Detect tab's model list now shows the viewer's own registered models beside the built-ins (`(yours)`), and a job started from it uses the model. RF-DETR class ids are taken as the order of the dataset's categories (0-based); that is verified for one class only.
+
 **Build plan:** `user:<id>` loader in the detector with an LRU of 3 and the tenant ownership check (ADR-0017), working on both detector images; the Detect tab's model list reads the registry.
 
 **Demo:** run a job in the Detect tab with the model trained in S4 and see its boxes.

@@ -90,7 +90,8 @@ async def test_cancel_stops_a_run_in_progress():
     await asyncio.wait_for(start, 30)
     assert "The run was cancelled." in texts(session)
     rows = value(nodes(session, "table")[-1], "rows")
-    assert rows[0]["state"] == "cancelled" and rows[0]["model"] == ""
+    cancelled = [r for r in rows if r["state"] == "cancelled"]  # not rows[0]: the clock can step
+    assert len(cancelled) == 1 and cancelled[0]["model"] == ""
 
 
 @pytest.mark.asyncio
