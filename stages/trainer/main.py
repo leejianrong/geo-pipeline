@@ -14,22 +14,21 @@ import threading
 from geopipe import bus, store
 from geopipe.ingest import ingest
 from geopipe.messages import INGEST, TRAIN, IngestJob, TrainJob
+from geopipe.runner import make_train_fn
 from geopipe.train import handle_train
 
 
-def training_function():
+def training_function(s3):
     """The real training function on a GPU worker, None on the CPU image."""
     if os.environ.get("TRAINER_DEVICE") != "cuda":
         return None
-    from runner import run_training  # noqa: PLC0415  (imports torch)
-
-    return run_training
+    return make_train_fn(s3)
 
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
     r, s3 = bus.connect(), store.client()
-    me, train_fn = socket.gethostname(), training_function()
+    me, train_fn = socket.gethostname(), training_function(s3)
     threading.Thread(target=bus.consume, daemon=True, args=(
         r, TRAIN, "trainer", me, TrainJob, lambda j: handle_train(r, s3, j, train_fn))).start()
     bus.consume(r, INGEST, "trainer", me, IngestJob, lambda j: ingest(r, s3, j))

@@ -3,7 +3,9 @@ ARG BASE=geo-train
 FROM ${BASE}
 COPY libs/geopipe /src/geopipe
 RUN pip install --no-cache-dir /src/geopipe
-COPY stages/trainer/main.py stages/trainer/runner.py /app/
+COPY scripts/yolox_exp.py scripts/export_yolox_onnx.py scripts/train_rfdetr.py \
+     scripts/export_rfdetr_onnx.py /scripts/
+COPY stages/trainer/main.py /app/
 WORKDIR /app
 ENV TRAINER_DEVICE=cuda
 CMD ["python", "/app/main.py"]

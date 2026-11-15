@@ -40,6 +40,7 @@ def test_a_missing_upload_fails_at_once_with_a_clear_report():
     assert ids["dataset_id"].startswith("my-roofs-")
 
     status = wait_for_state(ids["job_id"], A, {"error"})
+    assert bus.connect().zscore("jobs:deadlines", ids["job_id"]) is None  # not a sweeper job
     assert "upload not found" in status["error"] and key in status["error"]
 
     _, body = call("GET", f"{API}/datasets/{ids['dataset_id']}", A)
@@ -123,6 +124,7 @@ def test_a_good_zip_becomes_a_ready_dataset_the_explore_api_serves():
     )
     ids, status = ingest(zip_bytes)
     assert status["state"] == "done" and status["images"] == "3" and status["boxes"] == "3"
+    assert bus.connect().zscore("jobs:deadlines", ids["job_id"]) is None  # not a sweeper job
 
     _, body = call("GET", f"{API}/datasets/{ids['dataset_id']}", A)
     m = json.loads(body)

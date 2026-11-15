@@ -20,7 +20,7 @@ from .messages import DEADLINES, JOBS_DEAD, JOBS_DONE, Done
 
 log = logging.getLogger("geopipe")
 STATUS_TTL = 7 * 24 * 3600
-TERMINAL = ("done", "incomplete", "error")
+TERMINAL = ("done", "incomplete", "error", "cancelled")
 RETRY_BASE_S = float(os.environ.get("GEOPIPE_RETRY_BASE_S", "15"))
 MAX_ATTEMPTS = int(os.environ.get("GEOPIPE_MAX_ATTEMPTS", "3"))
 BLOCK_MS = 1000  # must stay well below the socket timeout in connect()

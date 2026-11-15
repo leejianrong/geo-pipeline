@@ -145,6 +145,7 @@ class ModelManifest(BaseModel):
     classes: list[str]
     trained_on: str | None = None  # dataset id
     backend: str | None = None
+    run_id: str | None = None  # the training run that made it
     licence: str = Field(min_length=1)
     state: Literal["ready", "failed"] = "ready"
     created_at: float

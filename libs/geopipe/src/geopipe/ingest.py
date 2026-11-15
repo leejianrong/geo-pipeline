@@ -65,7 +65,6 @@ def ingest(
                     f"{limits.max_bytes / 1024**3:.1f} GB"
                 )
             s3.download_file(job.bucket, job.upload_key, str(zip_path))
-            bus.touch(r, job.job_id)
             try:
                 dataset_zip.safe_extract(zip_path, work / "unzipped", limits)
                 root = dataset_zip.prepare(work / "unzipped", work, limits)
