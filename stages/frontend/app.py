@@ -11,6 +11,8 @@ from explore import explore_view
 from indah import Button, Card, Column, Session, Signal, Tabs, Text, TextInput, create_app
 from models import models_view
 
+from train import train_view
+
 
 def build_session() -> Session:
     client = Client()
@@ -18,6 +20,7 @@ def build_session() -> Session:
     detect_cards, detect_refresh = detect_view(client)
     explore_cards, explore_refresh = explore_view(client)
     model_cards, model_refresh = models_view(client)
+    train_cards, _uploaded = train_view(client)
 
     async def sign_in() -> None:
         resp = await client.request("GET", "/jobs")
@@ -35,8 +38,9 @@ def build_session() -> Session:
             Button("Sign in", on_click=sign_in),
             Text(lambda: message.value)]),
         Tabs(children=[Column(children=detect_cards),
-                       Column(children=[*explore_cards, *model_cards])],
-             labels=["Detect", "Explore"])]))
+                       Column(children=[*explore_cards, *model_cards]),
+                       Column(children=train_cards)],
+             labels=["Detect", "Explore", "Train"])]))
 
 
 app = create_app(session_factory=build_session, max_upload_mb=MAX_UPLOAD_MB, title="geo-pipeline")
