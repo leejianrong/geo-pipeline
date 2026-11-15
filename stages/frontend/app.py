@@ -9,6 +9,7 @@ from common import Client
 from detect import MAX_UPLOAD_MB, detect_view
 from explore import explore_view
 from indah import Button, Card, Column, Session, Signal, Tabs, Text, TextInput, create_app
+from models import models_view
 
 
 def build_session() -> Session:
@@ -16,6 +17,7 @@ def build_session() -> Session:
     message = Signal("Enter your API key to start.")
     detect_cards, detect_refresh = detect_view(client)
     explore_cards, explore_refresh = explore_view(client)
+    model_cards, model_refresh = models_view(client)
 
     async def sign_in() -> None:
         resp = await client.request("GET", "/jobs")
@@ -24,6 +26,7 @@ def build_session() -> Session:
         if resp.status_code == 200:
             await detect_refresh()
             await explore_refresh()
+            await model_refresh()
 
     return Session(Column(children=[
         Text("# geo-pipeline\n\nDetect objects in a GeoTIFF, or explore a dataset.", markdown=True),
@@ -31,7 +34,8 @@ def build_session() -> Session:
             TextInput(client.key, label="API key", password=True, on_submit=sign_in),
             Button("Sign in", on_click=sign_in),
             Text(lambda: message.value)]),
-        Tabs(children=[Column(children=detect_cards), Column(children=explore_cards)],
+        Tabs(children=[Column(children=detect_cards),
+                       Column(children=[*explore_cards, *model_cards])],
              labels=["Detect", "Explore"])]))
 
 

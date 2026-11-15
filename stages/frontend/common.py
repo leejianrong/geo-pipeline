@@ -59,7 +59,7 @@ class _OnChange:
 
     def handle(self, event: str, payload: dict):
         handled = super().handle(event, payload)
-        if handled and self._on_change is not None and event in ("change", "input"):
+        if handled and self._on_change is not None and event in ("change", "input", "select"):
             result = self._on_change()
             if inspect.iscoroutine(result):
                 return result  # the session awaits it in the background
@@ -71,4 +71,8 @@ class Select(_OnChange, indah.Select):
 
 
 class Segmented(_OnChange, indah.Segmented):
+    pass
+
+
+class Table(_OnChange, indah.Table):
     pass
