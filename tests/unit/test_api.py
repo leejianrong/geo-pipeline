@@ -156,7 +156,6 @@ def test_a_tenant_at_its_dataset_or_model_quota_gets_no_more_upload_urls():
     assert c.post("/uploads/dataset", json={"size": 10}, headers=B).status_code == 200  # globex
 
 
-<<<<<<< HEAD
 HISTORY = FakeHistory([
     {"job_id": "old", "tenant_id": "acme", "state": "done",
      "output_uri": "s3://imagery/tenants/acme/results/old.geojson"},
@@ -183,7 +182,8 @@ def test_job_list_adds_history_rows_after_live_ones_without_duplicates():
     assert [j["job_id"] for j in got] == ["new", "old", "ancient"]
     assert got[0]["state"] == "running"  # Valkey is the live truth
     assert [j["job_id"] for j in c.get("/jobs", headers=B).json()] == ["theirs"]
-=======
+
+
 def test_a_signed_token_names_the_tenant_when_the_api_has_the_secret():
     from geopipe import identity
 
@@ -204,4 +204,3 @@ def test_a_signed_token_names_the_tenant_when_the_api_has_the_secret():
     assert c.post("/uploads", headers=A).status_code == 200  # API keys still work
     plain = client()  # no secret configured: a token is just a bad credential
     assert plain.post("/uploads", headers=bearer(tenant="github-7")).status_code == 401
->>>>>>> 1a47891 (GEO-50: sign in with GitHub, then Google; one tenant per account (ADR-0019))
