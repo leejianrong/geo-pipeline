@@ -315,7 +315,7 @@ An interactive dashboard is out of scope here. indah (the owner's reactive UI fr
 
 **Build plan:** fine-tune nano, tiny and RF-DETR Nano on the existing SpaceNet split; benchmark at 416 and 640 inputs; apply the ADR-0014 bar; remove backends that miss it; record the table in `docs/benchmarks/` and update ADR-0014 with the result.
 
-**Result:** YOLOX-tiny at 416 px passes (0.564 mAP@.5, 3.1x faster than YOLOX-s); tiny at 640, and nano at both sizes, are removed; RF-DETR Nano passes on accuracy but not on speed against YOLOX-s and is kept pending a decision. See `docs/benchmarks/spacenet-khartoum.md`.
+**Result:** YOLOX-tiny at 416 px passes (0.564 mAP@.5, 3.1x faster than YOLOX-s); tiny at 640, and nano at both sizes, are removed; RF-DETR Nano passes on accuracy but not on speed against YOLOX-s and is kept by the owner's decision of 2026-11-16 (it is about 2x faster than RF-DETR Small for 6 mAP points). See `docs/benchmarks/spacenet-khartoum.md`.
 
 **Demo:** a report table of mAP@.5, F1, ms per tile (1 and 4 threads) and end-to-end tiles/s for every candidate, each marked pass or fail against the bar.
 

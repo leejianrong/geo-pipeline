@@ -22,7 +22,7 @@ Raw: `spacenet-l3-*.json` (first seven rows), `spacenet-l4-*.json` (the INT8 row
 | model | mAP@.5 | F1@.5 | detect s/img, 4 threads | 1 thread | vs YOLOX-s speed (1 thread) | bar |
 |---|---|---|---|---|---|---|
 | rfdetr-buildings (Small) | 0.659 | 0.642 | 0.84 | 2.55 | 0.4x | reference |
-| rfdetr-nano-buildings | 0.596 | 0.602 | 0.43 | 1.29 | 0.7x | accuracy only; kept pending a decision |
+| rfdetr-nano-buildings | 0.596 | 0.602 | 0.43 | 1.29 | 0.7x | fails speed against YOLOX-s; kept by decision (2x faster than RF-DETR Small) |
 | yolox-buildings (s) | 0.586 | 0.612 | 0.29 | 0.95 | 1x | reference |
 | yolox-buildings-int8 | 0.573 | 0.588 | 0.12 | 0.33 | 2.9x | within 2 points of FP32 (-1.3) |
 | yolox-tiny-buildings (416) | 0.564 | 0.562 | 0.09 | 0.26 | 3.7x | passes |
