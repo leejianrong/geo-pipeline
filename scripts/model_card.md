@@ -35,8 +35,8 @@ model time for one 650 px image, which is 4 tiles.
 
 {table}
 
-The bar these models were held to: at least 90% of fine-tuned YOLOX-s's mAP@.5 and at least 2x faster
-(INT8 within 2 points of its FP32 model). Full report:
+The bar these models were held to: at least {min_accuracy} of the mAP@.5 of the largest fine-tuned model of
+the family (YOLOX-s) and at least {min_speedup}x faster than it (INT8 within 2 points of its FP32 model). Full report:
 [docs/benchmarks/lightweight-detector.md](https://github.com/leejianrong/geo-pipeline/blob/main/docs/benchmarks/lightweight-detector.md).
 
 ## Use

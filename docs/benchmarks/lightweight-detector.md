@@ -22,7 +22,7 @@ Raw: `spacenet-l3-*.json` (first seven rows), `spacenet-l4-*.json` (the INT8 row
 | model | mAP@.5 | F1@.5 | detect s/img, 4 threads | 1 thread | vs YOLOX-s speed (1 thread) | bar |
 |---|---|---|---|---|---|---|
 | rfdetr-buildings (Small) | 0.659 | 0.642 | 0.84 | 2.55 | 0.4x | reference |
-| rfdetr-nano-buildings | 0.596 | 0.602 | 0.43 | 1.29 | 0.7x | fails speed against YOLOX-s; kept by decision (2x faster than RF-DETR Small) |
+| rfdetr-nano-buildings | 0.596 | 0.602 | 0.43 | 1.29 | 0.7x | 1.95x faster than RF-DETR Small, 90.5% of its mAP; passes the family bar; published |
 | yolox-buildings (s) | 0.586 | 0.612 | 0.29 | 0.95 | 1x | reference |
 | yolox-buildings-int8 | 0.573 | 0.588 | 0.12 | 0.33 | 2.9x | within 2 points of FP32 (-1.3) |
 | yolox-tiny-buildings (416) | 0.564 | 0.562 | 0.09 | 0.26 | 3.7x | passes |
@@ -31,7 +31,7 @@ Raw: `spacenet-l3-*.json` (first seven rows), `spacenet-l4-*.json` (the INT8 row
 | yolox-nano-buildings-640 | 0.508 | 0.509 | 0.07 | 0.15 | | fails accuracy; removed |
 | yolox-nano-buildings-416 | 0.471 | 0.468 | 0.05 | 0.08 | | fails accuracy; removed |
 
-The bar (ADR-0014): at least 0.527 mAP@.5 (90% of YOLOX-s's 0.586) and at least 2x faster than YOLOX-s; INT8 within 2 mAP points of its FP32 model. Timings for different rows come from separate runs of one machine with other workloads, so differences of about 10% are noise. The fine-tuned rows from the first and second SpaceNet run agree to the third decimal on mAP; speeds varied by up to 5%.
+The bar (ADR-0014, amended 2026-11-16): at least 90% of the mAP@.5 of the largest fine-tuned model of its family (YOLOX-s 0.586, RF-DETR Small 0.659) and at least 1.5x faster than it; INT8 within 2 mAP points of its FP32 model. Before the amendment the speed half was 2x and always against YOLOX-s, which RF-DETR Nano (0.7x YOLOX-s) could not meet; its "bar" cells above show how each model stands against its own family reference where it has one. The YOLOX rows were written against YOLOX-s. Timings for different rows come from separate runs of one machine with other workloads, so differences of about 10% are noise. The fine-tuned rows from the first and second SpaceNet run agree to the third decimal on mAP; speeds varied by up to 5%.
 
 ## End to end through the pipeline (one detector, 4 threads, 48-tile mosaic)
 

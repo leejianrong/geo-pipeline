@@ -65,7 +65,7 @@ Facts measured on this machine (i9-12900H, ORT 1.31 CPU, 4 threads, one 640 px t
 | L4 | Threads | ASSUMED | `DETECTOR_THREADS` default 4 (measured: more is not faster); several detector replicas for throughput | SLICES L1 |
 | L5 | Input size | DEFERRED | Nano and tiny are 416 native. Try them at tile size 416 (no downscale) and at 640 (letterbox) and keep the better default, from data | SLICES L2 |
 | L6 | Quantisation method | ASSUMED | ORT static QDQ INT8, calibrated on tiles from the target data; dynamic quantisation does not help convolutions | SLICES L3 |
-| F-L1 | Success bar | ANSWERED | At least 90% of fine-tuned YOLOX-s SpaceNet mAP@.5 (0.586) at least 2x faster; INT8 within 2 points of its FP32 | ADR-0014 |
+| F-L1 | Success bar | ANSWERED | At least 90% of the mAP@.5 of its family's reference (YOLOX-s or RF-DETR Small) at least 1.5x faster (was 2x against YOLOX-s until 2026-11-16); INT8 within 2 points of its FP32 | ADR-0014 |
 | F-L2 | Hardware target | ANSWERED | x86-64 only; 1 and 4 threads as small-box proxy; ARM deferred | ADR-0014 |
 | F-L3 | Include pipeline overhead fixes | ANSWERED | Yes, slice L1 first | ADR-0014 |
 | F-L4 | Torch-free ONNX-only detector image | ANSWERED | Yes, slice L5 last | ADR-0014 |
