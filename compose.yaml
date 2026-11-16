@@ -60,6 +60,8 @@ services:
       <<: *env
       # dev keys, `key:tenant`; presigned URLs are signed for the host-published store port
       GEOPIPE_API_KEYS: "dev-key-a:acme,dev-key-b:globex"
+      # signs the tokens the web UI sends after a GitHub or Google sign-in (ADR-0019); dev value
+      GEOPIPE_SESSION_SECRET: ${GEOPIPE_SESSION_SECRET:-dev-only-session-secret-change-it-0123456789}
       S3_PUBLIC_ENDPOINT: http://localhost:8333
       # pages allowed to PUT to presigned URLs from the browser (CORS rule on the bucket)
       GEOPIPE_BROWSER_ORIGINS: ${GEOPIPE_BROWSER_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
@@ -71,6 +73,14 @@ services:
       API_URL: http://api:8000
       S3_REWRITE: localhost:8333=seaweedfs:8333  # the API signs URLs for the host-published port
       UI_MODELS: ${DETECTOR_MODELS:-stub,rfdetr,yolox,yolox-tiny,rfdetr-nano}
+      # Sign in with GitHub / Google: set a provider's id and secret in your shell to turn it
+      # on (ADR-0019); with none set the UI asks for an API key. Callback: PUBLIC_URL/auth/<provider>/callback
+      GEOPIPE_SESSION_SECRET: ${GEOPIPE_SESSION_SECRET:-dev-only-session-secret-change-it-0123456789}
+      GEOPIPE_PUBLIC_URL: ${GEOPIPE_PUBLIC_URL:-http://localhost:8080}
+      GEOPIPE_GITHUB_CLIENT_ID: ${GEOPIPE_GITHUB_CLIENT_ID:-}
+      GEOPIPE_GITHUB_CLIENT_SECRET: ${GEOPIPE_GITHUB_CLIENT_SECRET:-}
+      GEOPIPE_GOOGLE_CLIENT_ID: ${GEOPIPE_GOOGLE_CLIENT_ID:-}
+      GEOPIPE_GOOGLE_CLIENT_SECRET: ${GEOPIPE_GOOGLE_CLIENT_SECRET:-}
     ports: ["127.0.0.1:8080:8000"]
     depends_on: [api]
   tools:  # test runner on the compose network: `make e2e`
