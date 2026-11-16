@@ -178,6 +178,16 @@ def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str],
                 "width": int(status["width"]) if "width" in status else None,
                 "height": int(status["height"]) if "height" in status else None}
 
+    @app.get("/inspect")
+    def get_inspect(tid: str = Depends(tenant)) -> dict:
+        """The Inspector's data for the tenant's latest finished job (each job replaces it)."""
+        key = f"tenants/{tid}/inspect/latest.json"
+        try:
+            s3.head_object(Bucket=bucket, Key=key)
+        except ClientError as e:
+            raise HTTPException(404, "no finished job to inspect yet") from e
+        return {"url": store.presign_get(public_s3, bucket, key)}
+
     return app
 
 

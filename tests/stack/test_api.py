@@ -61,6 +61,15 @@ def test_upload_submit_poll_download_and_tenant_isolation(tmp_path):
     assert status == 200
     assert len(json.loads(body)["features"]) == 5  # the five rectangles in the synthetic raster
 
+    # the Inspector's data: the latest job's cut, raw boxes and merge provenance, for this tenant
+    assert call("GET", f"{API}/inspect", "dev-key-b")[0] == 404
+    status, body = call("GET", f"{API}/inspect", "dev-key-a")
+    assert status == 200
+    status, body = call("GET", json.loads(body)["url"])
+    insp = json.loads(body)
+    assert status == 200 and insp["job_id"] == job_id
+    assert len(insp["merged"]) == 5 and all(m["from"] for m in insp["merged"])
+
     # the other tenant can neither see the job nor submit the first tenant's upload
     assert call("GET", f"{API}/jobs/{job_id}", "dev-key-b")[0] == 404
     assert call("GET", f"{API}/jobs/{job_id}/result", "dev-key-b")[0] == 404

@@ -32,22 +32,50 @@ def _cut_by_interior_edge(b: dict, win: dict, width: int, height: int) -> bool:
     )
 
 
+def _iou(a: dict, b: dict) -> float:
+    w = min(a["x2"], b["x2"]) - max(a["x1"], b["x1"])
+    h = min(a["y2"], b["y2"]) - max(a["y1"], b["y1"])
+    inter = max(w, 0) * max(h, 0)
+    union = ((a["x2"] - a["x1"]) * (a["y2"] - a["y1"]) + (b["x2"] - b["x1"]) * (b["y2"] - b["y1"])
+             - inter)
+    return inter / union if union else 0.0
+
+
+def merge_traced(per_tile: dict[int, dict], width: int, height: int, overlap: float,
+                 iou: float) -> tuple[list[dict], list[dict]]:
+    """Like `merge_boxes`, but also says where each box came from. Returns (merged, cut):
+    every merged box carries `from`, the `[tile, index]` of each raw box it stands for (its own
+    first, then the duplicates NMS removed); `cut` lists the raw boxes dropped for touching an
+    interior tile edge. Indices are positions in `per_tile[tile]["boxes"]`."""
+    boxes, cut = [], []
+    for idx in sorted(per_tile):
+        win = per_tile[idx]["window"]
+        for n, b in enumerate(per_tile[idx]["boxes"]):
+            if overlap > 0 and _cut_by_interior_edge(b, win, width, height):
+                cut.append({"tile": idx, "index": n})
+                continue
+            boxes.append({**b, "x1": b["x1"] + win["x_off"], "x2": b["x2"] + win["x_off"],
+                          "y1": b["y1"] + win["y_off"], "y2": b["y2"] + win["y_off"],
+                          "ref": [idx, n]})
+    kept = []
+    for cid in {b["class_id"] for b in boxes}:
+        group = [b for b in boxes if b["class_id"] == cid]
+        xyxy = np.array([[b["x1"], b["y1"], b["x2"], b["y2"]] for b in group])
+        keep = nms(xyxy, np.array([b["score"] for b in group]), iou)
+        winners = [{**group[i], "from": [group[i]["ref"]]} for i in keep]
+        for j, b in enumerate(group):
+            if j not in keep:  # a loser goes to the winner it overlaps most
+                max(winners, key=lambda w: _iou(w, b))["from"].append(b["ref"])
+        kept += winners
+    for b in kept:
+        del b["ref"]
+    return sorted(kept, key=lambda b: (b["y1"], b["x1"])), cut
+
+
 def merge_boxes(per_tile: dict[int, dict], width: int, height: int, overlap: float,
                 iou: float) -> list[dict]:
     """per_tile: idx -> {"window": {...}, "boxes": [{x1,y1,x2,y2,score,class_id,class_name}]}.
     Returns boxes in raster pixels. With overlap > 0, boxes cut by an interior tile edge are
     dropped, then class-wise NMS removes duplicates seen by several tiles."""
-    boxes = []
-    for idx in sorted(per_tile):
-        win = per_tile[idx]["window"]
-        for b in per_tile[idx]["boxes"]:
-            if overlap > 0 and _cut_by_interior_edge(b, win, width, height):
-                continue
-            boxes.append({**b, "x1": b["x1"] + win["x_off"], "x2": b["x2"] + win["x_off"],
-                          "y1": b["y1"] + win["y_off"], "y2": b["y2"] + win["y_off"]})
-    kept = []
-    for cid in {b["class_id"] for b in boxes}:
-        group = [b for b in boxes if b["class_id"] == cid]
-        xyxy = np.array([[b["x1"], b["y1"], b["x2"], b["y2"]] for b in group])
-        kept += [group[i] for i in nms(xyxy, np.array([b["score"] for b in group]), iou)]
-    return sorted(kept, key=lambda b: (b["y1"], b["x1"]))
+    merged, _ = merge_traced(per_tile, width, height, overlap, iou)
+    return [{k: v for k, v in b.items() if k != "from"} for b in merged]
