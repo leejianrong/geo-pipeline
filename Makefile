@@ -1,4 +1,4 @@
-.PHONY: browser register-builtin publish-model up-slim e2e-slim export-rfdetr quantise help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences hooks
+.PHONY: browser register-builtin publish-model up-slim e2e-slim export-rfdetr quantise help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences scan hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
 UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pycocotools --with pytest --with ruff --with fastapi --with httpx --with onnx --with onnxruntime
@@ -122,6 +122,12 @@ licences:  ## fail on AGPL/GPL Python packages in every image (the slim detector
 	@for img in $$(docker compose config --images | grep -v -e valkey -e seaweedfs -e postgres) \
 	  $$(docker image ls -q geo-pipeline-detector-slim | head -1 | sed 's/.*/geo-pipeline-detector-slim/'); do \
 	  docker run --rm -v "$$PWD/scripts:/s:ro" --entrypoint python $$img /s/licence_check.py \
+	    || exit 1; done
+
+scan:  ## Trivy: HIGH and CRITICAL vulnerabilities that have a fix, in our images (needs trivy; build first; docs/security.md)
+	@for img in $$(docker compose config --images | grep '^geo-pipeline-') \
+	  $$(docker image ls -q geo-pipeline-detector-slim | head -1 | sed 's/.*/geo-pipeline-detector-slim/'); do \
+	  trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 $$img \
 	    || exit 1; done
 
 hooks:  ## install the pre-push hook
