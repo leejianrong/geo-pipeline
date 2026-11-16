@@ -1,4 +1,4 @@
-.PHONY: browser register-builtin publish-model up-slim e2e-slim export-rfdetr quantise help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences scan hooks
+.PHONY: up-distroless e2e-distroless browser register-builtin publish-model up-slim e2e-slim export-rfdetr quantise help base base-all lint test check up down e2e bench-large up-gpu bench-device bench-coco coco-data spacenet-data train-rfdetr train-yolox bench-spacenet licences scan hooks
 .DEFAULT_GOAL := help
 PY ?= 3.12
 UV_RUN = uv run --python $(PY) --with-editable ./libs/geopipe --with matplotlib --with pycocotools --with pytest --with ruff --with fastapi --with httpx --with onnx --with onnxruntime
@@ -48,6 +48,15 @@ down:  ## stop the stack and delete its data
 e2e: export TRAINER_DEVICE = fake
 e2e: down up  ## end-to-end tests on a fresh stack (the trainer fakes training); artefacts in data/out/
 	docker compose run --rm --build tools pytest -q -m "not slow" tests/stack
+
+up-distroless:  ## like `up`, with slicer and postprocess on distroless images (docs/distroless.md)
+	docker image inspect geo-gdal:py3.12 >/dev/null 2>&1 || \
+	  base/build.sh $$(jq -r .default_gdal base/matrix.json) 3.12
+	docker compose -f compose.yaml -f compose.distroless.yaml up -d --build
+
+e2e-distroless: export TRAINER_DEVICE = fake
+e2e-distroless: down up-distroless  ## the stack tests with the GDAL stages on distroless images
+	docker compose -f compose.yaml -f compose.distroless.yaml run --rm --build tools pytest -q -m "not slow" tests/stack
 
 e2e-slim: down up-slim  ## every model finds both cats on the torch-free detector
 	docker compose -f compose.yaml -f compose.slim.yaml run --rm --build tools pytest -q -k each_model tests/stack

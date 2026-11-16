@@ -1,0 +1,21 @@
+# Distroless slicer or postprocess: the same code as stages/<STAGE>/Dockerfile, on distroless/cc.
+# Built by compose.distroless.yaml (`make e2e-distroless`); the recipe is docs/distroless.md.
+ARG STAGE=slicer
+FROM geo-gdal:py3.12 AS build
+ARG STAGE
+RUN apt-get update && apt-get -y --no-install-recommends upgrade && rm -rf /var/lib/apt/lists/*
+COPY examples/distroless/collect-libs.sh /usr/local/bin/
+COPY libs/geopipe /src/geopipe
+RUN pip install --no-cache-dir /src/geopipe && pip uninstall -y pip setuptools wheel
+COPY stages/${STAGE}/main.py /app/main.py
+RUN collect-libs.sh /libs /opt/gdal /usr/local/bin/python3.12 /usr/local/lib
+
+FROM gcr.io/distroless/cc-debian13:nonroot
+COPY --from=build /libs/ /
+COPY --from=build /opt/gdal /opt/gdal
+COPY --from=build /usr/share/proj /usr/share/proj
+COPY --from=build /usr/local/bin/python3.12 /usr/local/bin/python
+COPY --from=build /usr/local/lib/ /usr/local/lib/
+COPY --from=build /app /app
+ENV LD_LIBRARY_PATH=/usr/local/lib:/opt/gdal/lib GDAL_DATA=/opt/gdal/share/gdal PROJ_DATA=/usr/share/proj
+ENTRYPOINT ["/usr/local/bin/python", "/app/main.py"]
