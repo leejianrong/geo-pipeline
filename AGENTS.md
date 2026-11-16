@@ -24,6 +24,7 @@ Build order and acceptance tests: `docs/SLICES.md` (its end-to-end lines are the
 - `make register-builtin`: put the SpaceNet dataset (after `make spacenet-data`) into the registry so the Explore tab shows it.
 - `make up-gpu`: detector and trainer on the GPU via `compose.gpu.yaml`; never run it alongside the CPU detector (shared consumer group). `make bench-device`: CPU vs GPU tiles/s and parity (needs a GPU, not in CI).
 - `scripts/gpu_train_run.py`: one real fine-tuning on the local GPU through the stack (queue it with pueue, minimal env; the GPU is shared, see its docstring). Never start GPU work directly.
+- `make scan`: Trivy over our images, fails on HIGH or CRITICAL findings that have a fix (`docs/security.md` has the state and what is left).
 - `make base` (default GDAL, both Pythons), `make base-all` (every GDAL x Python, slow), `make licences`, `make down`. Bare `make` lists targets.
 
 ## Conventions

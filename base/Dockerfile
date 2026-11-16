@@ -1,5 +1,5 @@
 # GDAL (built from source) + CPython + numpy 2.x base image.
-#   base/build.sh 3.12 3.12      # GDAL 3.12.x on Python 3.12, from base/matrix.json
+#   base/build.sh 3.12 3.12      # GDAL 3.13.x on Python 3.12, from base/matrix.json
 # GDAL_VERSION must be a release in https://download.osgeo.org/gdal/ that also exists on PyPI as
 # the `GDAL` Python bindings: the bindings have to match libgdal exactly.
 ARG PY=3.12
@@ -7,7 +7,7 @@ ARG DEBIAN=trixie
 
 # 1. libgdal. Independent of the Python version, so both Python variants share this stage.
 FROM debian:${DEBIAN}-slim AS gdal
-ARG GDAL_VERSION=3.12.4
+ARG GDAL_VERSION=3.13.3
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake ninja-build pkg-config curl ca-certificates xz-utils \
         libproj-dev libgeos-dev libcurl4-openssl-dev libtiff-dev libgeotiff-dev libpng-dev \
@@ -33,7 +33,7 @@ RUN for lib in $(ldd /opt/gdal/lib/libgdal.so | awk '/=> \//{print $3}'); do \
 
 # 2. Python bindings, compiled against that libgdal and numpy 2.
 FROM python:${PY}-slim-${DEBIAN} AS bindings
-ARG GDAL_VERSION=3.12.4
+ARG GDAL_VERSION=3.13.3
 COPY --from=gdal /opt/gdal /opt/gdal
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential $(cat /opt/gdal/runtime-packages.txt) \
@@ -45,7 +45,7 @@ RUN pip install --no-cache-dir "numpy>=2,<3" setuptools wheel \
 
 # 3. Runtime image: no compilers needed at run time.
 FROM python:${PY}-slim-${DEBIAN}
-ARG GDAL_VERSION=3.12.4
+ARG GDAL_VERSION=3.13.3
 LABEL org.opencontainers.image.source="https://github.com/leejianrong/geo-pipeline" \
       org.opencontainers.image.description="GDAL ${GDAL_VERSION} + CPython + numpy 2.x" \
       org.opencontainers.image.licenses="Apache-2.0"
