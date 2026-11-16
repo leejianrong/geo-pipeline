@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Shared contracts and helpers for the geo-pipeline workers"
 requires-python = ">=3.12"
 license = "Apache-2.0"
-dependencies = ["boto3>=1.35", "numpy>=2", "pillow>=10", "pydantic>=2.7", "redis>=5"]
+dependencies = ["boto3>=1.35", "numpy>=2", "pillow>=10", "pg8000>=1.31", "pydantic>=2.7", "redis>=5"]
 
 [project.optional-dependencies]
 viz = ["matplotlib>=3.8"]

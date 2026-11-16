@@ -65,8 +65,9 @@ DEFAULT_QUOTAS = Quotas()
 
 
 def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str],
-               quotas: Quotas = DEFAULT_QUOTAS) -> FastAPI:
-    """`public_s3` signs URLs with the endpoint clients can reach (it may differ from `s3`)."""
+               quotas: Quotas = DEFAULT_QUOTAS, history=None) -> FastAPI:
+    """`public_s3` signs URLs with the endpoint clients can reach (it may differ from `s3`).
+    `history` (Postgres) answers for jobs Valkey no longer has."""
     app = FastAPI(title="geo-pipeline", version="0.1.0")
 
     def tenant(x_api_key: str = Header(default="")) -> str:
@@ -77,6 +78,8 @@ def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str],
 
     def own_status(job_id: str, tid: str) -> dict:
         status = r.hgetall(f"job:{job_id}:status")
+        if not status and history:
+            status = history.get(job_id, tid) or {}
         if not status or status.get("tenant_id") != tid:
             raise HTTPException(404, "unknown job")  # same answer for another tenant's job
         return status
@@ -140,8 +143,13 @@ def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str],
     @app.get("/jobs")
     def list_jobs(limit: int = 50, tid: str = Depends(tenant)) -> list[dict]:
         """The tenant's newest jobs (statuses expire after a few days, so older ones drop out)."""
-        ids = r.zrevrange(f"tenant:{tid}:jobs", 0, max(1, min(limit, 200)) - 1)
-        return [{"job_id": i, **s} for i in ids if (s := r.hgetall(f"job:{i}:status"))]
+        limit = max(1, min(limit, 200))
+        ids = r.zrevrange(f"tenant:{tid}:jobs", 0, limit - 1)
+        jobs = [{"job_id": i, **s} for i in ids if (s := r.hgetall(f"job:{i}:status"))]
+        if history:  # older jobs, from the durable record
+            seen = set(ids)
+            jobs += [j for j in history.list(tid, limit) if j["job_id"] not in seen]
+        return jobs[:limit]
 
     @app.get("/jobs/{job_id}")
     def get_job(job_id: str, tid: str = Depends(tenant)) -> dict:
@@ -174,5 +182,6 @@ def app_from_env() -> FastAPI:  # `uvicorn geopipe.api:app_from_env --factory`
     origins = os.environ.get("GEOPIPE_BROWSER_ORIGINS", "http://localhost:8080,http://127.0.0.1:8080")
     store.allow_browser_uploads(s3, bucket, origins.split(","))
     public = store.client(os.environ.get("S3_PUBLIC_ENDPOINT"))
-    return create_app(bus.connect(), s3, public, bucket,
-                      parse_keys(os.environ["GEOPIPE_API_KEYS"]), Quotas.from_env())
+    r = bus.connect()
+    return create_app(r, s3, public, bucket, parse_keys(os.environ["GEOPIPE_API_KEYS"]),
+                      Quotas.from_env(), bus.history_sink())

@@ -119,7 +119,7 @@ register-builtin:  ## make the SpaceNet dataset browsable in the studio's Explor
 	docker compose run --rm --build tools geopipe register-builtin /data/spacenet/coco
 
 licences:  ## fail on AGPL/GPL Python packages in every image (the slim detector too, if built)
-	@for img in $$(docker compose config --images | grep -v -e valkey -e seaweedfs) \
+	@for img in $$(docker compose config --images | grep -v -e valkey -e seaweedfs -e postgres) \
 	  $$(docker image ls -q geo-pipeline-detector-slim | head -1 | sed 's/.*/geo-pipeline-detector-slim/'); do \
 	  docker run --rm -v "$$PWD/scripts:/s:ro" --entrypoint python $$img /s/licence_check.py \
 	    || exit 1; done
