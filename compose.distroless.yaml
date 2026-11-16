@@ -1,0 +1,8 @@
+# Slicer and postprocess (the GDAL stages) on distroless images: `make up-distroless`.
+services:
+  slicer:
+    image: geo-pipeline-slicer-distroless
+    build: {dockerfile: stages/Dockerfile.distroless, args: {STAGE: slicer}}
+  postprocess:
+    image: geo-pipeline-postprocess-distroless
+    build: {dockerfile: stages/Dockerfile.distroless, args: {STAGE: postprocess}}
