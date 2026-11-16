@@ -45,10 +45,38 @@ def publish(r: redis.Redis, stream: str, msg: BaseModel) -> None:
     r.xadd(stream, {"data": msg.model_dump_json()}, maxlen=100_000, approximate=True)
 
 
+_history = None  # durable job history (Postgres), or None; see `history.py`
+_history_loaded = False
+
+
+def use_history(history) -> None:
+    """Use `history` for finished jobs from now on (tests and the API pass their own)."""
+    global _history, _history_loaded
+    _history, _history_loaded = history, True
+
+
+def history_sink():
+    global _history_loaded
+    if not _history_loaded:
+        _history_loaded = True
+        try:
+            from . import history  # noqa: PLC0415  (only when a database is configured)
+
+            use_history(history.from_env())
+        except Exception:
+            log.exception("job history is off: could not connect to the database")
+    return _history
+
+
 def set_status(r: redis.Redis, job_id: str, state: str, **fields) -> None:
     key = f"job:{job_id}:status"
     r.hset(key, mapping={"state": state, **{k: str(v) for k, v in fields.items()}})
     r.expire(key, STATUS_TTL)
+    if state in TERMINAL and (sink := history_sink()):
+        try:
+            sink.record(job_id, r.hgetall(key))
+        except Exception:  # a lost history row must not fail or retry the job
+            log.exception("could not record job %s in the history", job_id)
 
 
 def touch(r: redis.Redis, job_id: str) -> None:

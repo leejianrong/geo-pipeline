@@ -81,9 +81,11 @@ Per-job options, passed to `geopipe submit`:
 
 On a machine with an NVIDIA GPU and the NVIDIA container runtime, `make up-gpu` runs the detector on it (`DETECTOR_DEVICE=cuda`; it refuses to start without a visible GPU). It is about 2.5x faster for RF-DETR on our test raster, and `make bench-device` measures CPU against GPU on your machine. The GPU image is much larger because of the CUDA libraries. See [ADR-0012](docs/adr/0012-gpu-detector.md).
 
+Job history: Valkey keeps live job status for a week. With `GEOPIPE_DATABASE_URL` set (compose does, with a Postgres service) every finished job is also written to Postgres, and `GET /jobs` and `GET /jobs/{id}` answer from it once Valkey has forgotten the job ([ADR-0018](docs/adr/0018-job-history-in-postgres.md)).
+
 Studio: the web UI has an Explore tab where you browse a registered dataset (images by split, ground-truth boxes, box statistics, licence and attribution) and, below it, a model view: pick a model and one of its stored benchmark runs (`make bench-spacenet` stores one per model) to see mAP, precision, recall and F1, the precision-recall curve, and true against predicted boxes on each image with a score threshold and a worst-images list. Run `make spacenet-data` and, with the stack up, `make register-builtin` to add SpaceNet Khartoum; datasets are listed per tenant plus the shared built-ins ([ADR-0015](docs/adr/0015-studio-in-the-frontend.md), [ADR-0016](docs/adr/0016-trainer-stage-and-registry.md)). Browser uploads of large files go straight to the store (CORS, measured up to 4.9 GB); the Train tab has the dataset zip upload with a progress bar (`scripts/dataset_upload_check.py`).
 
-Publishing: `make publish-model REPO=<user>/yolox-tiny-buildings` stages the fine-tuned YOLOX-tiny models (FP32 and INT8) with a model card for Hugging Face under CC BY-SA 4.0 (add `UPLOAD=1` and `HF_TOKEN` to upload). Only models that pass the ADR-0014 bar are accepted.
+Publishing: `make publish-model REPO=<user>/yolox-tiny-buildings` stages the fine-tuned YOLOX-tiny models (FP32 and INT8) with a model card for Hugging Face under CC BY-SA 4.0 (add `UPLOAD=1` and either `HF_TOKEN` or a saved `hf auth login` to upload). Only models that pass the ADR-0014 bar are accepted.
 
 Torch-free image: `make up-slim` runs the detector without torch (ONNX Runtime only; 1.05 GB instead of 4 GB, models load in 0.4 s instead of 6 s) with the same model names, the same detections and the same speed. Fine-tuned RF-DETR weights need `make export-rfdetr RUN=rfdetr-spacenet VARIANT=Small` first. See [ADR-0014](docs/adr/0014-lightweight-cpu-detector.md).
 
@@ -127,7 +129,7 @@ Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (ever
 
 ## Status and roadmap
 
-Slices V1-V8 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark, an HTTP API and a GPU detector. Remaining ideas are durable job records (Postgres), real sign-in, and direct browser uploads; see a SpaceNet benchmark with fine-tuned weights. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
+Slices V1-V8 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark, an HTTP API and a GPU detector. Durable job records (Postgres) and the studio are done; real sign-in (GitHub, then Google) is next. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
 
 ## Contributing
 

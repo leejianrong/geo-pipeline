@@ -1,6 +1,7 @@
 # Dev-only credentials; nothing here is a secret.
 x-env: &env
   VALKEY_URL: redis://valkey:6379/0
+  GEOPIPE_DATABASE_URL: postgresql://geo:geo@postgres:5432/geo
   S3_ENDPOINT: http://seaweedfs:8333
   AWS_ACCESS_KEY_ID: dev
   AWS_SECRET_ACCESS_KEY: devdevdev
@@ -20,6 +21,11 @@ services:
   valkey:
     image: valkey/valkey:8
     healthcheck: {test: ["CMD", "valkey-cli", "ping"], interval: 2s, retries: 15}
+  postgres:  # durable job history (GEO-41); Valkey keeps live status only
+    image: postgres:17
+    environment: {POSTGRES_USER: geo, POSTGRES_PASSWORD: geo, POSTGRES_DB: geo}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck: {test: ["CMD", "pg_isready", "-U", "geo"], interval: 2s, retries: 15}
   seaweedfs:
     image: chrislusf/seaweedfs:latest
     ports: ["127.0.0.1:8333:8333"]  # presigned URLs from the API point here
@@ -28,7 +34,7 @@ services:
   slicer:
     build: {context: ., dockerfile: stages/slicer/Dockerfile}
     environment: *env
-    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+    depends_on: {valkey: {condition: service_healthy}, postgres: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   detector:
     build: {context: ., dockerfile: stages/detector/Dockerfile}
     environment:
@@ -37,17 +43,17 @@ services:
       DETECTOR_MODELS: ${DETECTOR_MODELS:-stub,rfdetr,yolox,yolox-tiny,rfdetr-nano}
       DETECTOR_THREADS: ${DETECTOR_THREADS:-4}
     volumes: ["./data/models:/weights:ro"]
-    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+    depends_on: {valkey: {condition: service_healthy}, postgres: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   trainer:
     build: {context: ., dockerfile: stages/trainer/Dockerfile}
     environment:
       <<: *env
       TRAINER_DEVICE: ${TRAINER_DEVICE:-cpu}  # `make e2e` sets fake: trains nothing, for tests
-    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+    depends_on: {valkey: {condition: service_healthy}, postgres: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   postprocess:
     build: {context: ., dockerfile: stages/postprocess/Dockerfile}
     environment: *env
-    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+    depends_on: {valkey: {condition: service_healthy}, postgres: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   api:
     build: {context: ., dockerfile: stages/api/Dockerfile}
     environment:
@@ -58,7 +64,7 @@ services:
       # pages allowed to PUT to presigned URLs from the browser (CORS rule on the bucket)
       GEOPIPE_BROWSER_ORIGINS: ${GEOPIPE_BROWSER_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
     ports: ["127.0.0.1:8000:8000"]
-    depends_on: {valkey: {condition: service_healthy}, seaweedfs: {condition: service_started}}
+    depends_on: {valkey: {condition: service_healthy}, postgres: {condition: service_healthy}, seaweedfs: {condition: service_started}}
   frontend:
     build: {context: ., dockerfile: stages/frontend/Dockerfile}
     environment:
@@ -72,3 +78,6 @@ services:
     build: {context: ., dockerfile: tests/Dockerfile}
     environment: *env
     volumes: [".:/repo", "./data:/data"]
+
+volumes:
+  pgdata:

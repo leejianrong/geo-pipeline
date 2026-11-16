@@ -22,9 +22,24 @@ class FakeRedis:
         return True
 
 
-def client(jobs=None, quotas=DEFAULT_QUOTAS):
+class FakeHistory:
+    """What `geopipe.history.History` answers: finished jobs, newest first, per tenant."""
+
+    def __init__(self, rows):
+        self.rows = rows  # [{"job_id", "tenant_id", ...}]
+
+    def get(self, job_id, tenant_id):
+        return next((r for r in self.rows if r["job_id"] == job_id
+                     and r["tenant_id"] == tenant_id), None)
+
+    def list(self, tenant_id, limit):
+        return [r for r in self.rows if r["tenant_id"] == tenant_id][:limit]
+
+
+def client(jobs=None, quotas=DEFAULT_QUOTAS, history=None):
     s3 = store.client("http://public:8333")
-    app = create_app(FakeRedis(jobs), s3, s3, "imagery", {"ka": "acme", "kb": "globex"}, quotas)
+    app = create_app(FakeRedis(jobs), s3, s3, "imagery", {"ka": "acme", "kb": "globex"}, quotas,
+                     history)
     return TestClient(app)
 
 
@@ -139,3 +154,31 @@ def test_a_tenant_at_its_dataset_or_model_quota_gets_no_more_upload_urls():
     assert full.status_code == 409 and "delete one" in full.json()["detail"]
     assert c.post("/uploads/model", json={"size": 10}, headers=A).status_code == 200
     assert c.post("/uploads/dataset", json={"size": 10}, headers=B).status_code == 200  # globex
+
+
+HISTORY = FakeHistory([
+    {"job_id": "old", "tenant_id": "acme", "state": "done",
+     "output_uri": "s3://imagery/tenants/acme/results/old.geojson"},
+    {"job_id": "theirs", "tenant_id": "globex", "state": "done"}])
+
+
+def test_a_job_valkey_forgot_is_answered_from_the_history_for_its_own_tenant_only():
+    c = client(history=HISTORY)
+    assert c.get("/jobs/old", headers=A).json()["state"] == "done"
+    assert c.get("/jobs/old", headers=B).status_code == 404
+    assert c.get("/jobs/old/result", headers=A).json()["url"].startswith(
+        "http://public:8333/imagery/tenants/acme/results/old.geojson")
+    assert client().get("/jobs/old", headers=A).status_code == 404  # no history: gone
+
+
+def test_job_list_adds_history_rows_after_live_ones_without_duplicates():
+    jobs = {"tenant:acme:jobs": ["new", "old"],
+            "job:new:status": {"state": "running", "tenant_id": "acme"},
+            "job:old:status": {"state": "done", "tenant_id": "acme"}}
+    c = client(jobs, history=FakeHistory(HISTORY.rows + [
+        {"job_id": "new", "tenant_id": "acme", "state": "done"},
+        {"job_id": "ancient", "tenant_id": "acme", "state": "error"}]))
+    got = c.get("/jobs", headers=A).json()
+    assert [j["job_id"] for j in got] == ["new", "old", "ancient"]
+    assert got[0]["state"] == "running"  # Valkey is the live truth
+    assert [j["job_id"] for j in c.get("/jobs", headers=B).json()] == ["theirs"]
