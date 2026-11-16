@@ -14,6 +14,8 @@ import httpx
 import indah
 from indah import Signal
 
+from geopipe import identity
+
 API = os.environ.get("API_URL", "http://api:8000")
 # Presigned URLs are signed for the address browsers use ("public"); inside compose this
 # server reaches the store by another name. Set "public=internal"; unset when they are equal.
@@ -39,16 +41,25 @@ def data_uri(content: bytes, media_type: str) -> str:
 
 
 class Client:
-    """One viewer's API key and sign-in state, shared by the tabs of their session."""
+    """One viewer's credentials and sign-in state, shared by the tabs of their session.
 
-    def __init__(self) -> None:
+    Signed in with GitHub or Google (`tenant` and the shared `secret`), every call carries a
+    short-lived signed token for that tenant (ADR-0019); otherwise the viewer types an API key."""
+
+    def __init__(self, tenant: str | None = None, secret: str = "") -> None:
         self.key = Signal("")
-        self.signed_in = Signal(False)
+        self.signed_in = Signal(tenant is not None)
+        self.tenant, self.secret = tenant, secret
+
+    def headers(self) -> dict:
+        if self.tenant:
+            token = identity.sign(self.secret, {"tenant": self.tenant}, ttl=300)
+            return {"Authorization": f"Bearer {token}"}
+        return {"X-API-Key": self.key.value}
 
     async def request(self, method: str, path: str, **kw) -> httpx.Response:
         async with httpx.AsyncClient(timeout=60) as c:
-            return await c.request(method, f"{API}{path}",
-                                   headers={"X-API-Key": self.key.value}, **kw)
+            return await c.request(method, f"{API}{path}", headers=self.headers(), **kw)
 
 
 async def wait_job(client: "Client", job_id: str, interval: float = 1.0,

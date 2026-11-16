@@ -83,6 +83,8 @@ On a machine with an NVIDIA GPU and the NVIDIA container runtime, `make up-gpu` 
 
 Job history: Valkey keeps live job status for a week. With `GEOPIPE_DATABASE_URL` set (compose does, with a Postgres service) every finished job is also written to Postgres, and `GET /jobs` and `GET /jobs/{id}` answer from it once Valkey has forgotten the job ([ADR-0018](docs/adr/0018-job-history-in-postgres.md)).
 
+Sign-in: set `GEOPIPE_GITHUB_CLIENT_ID` and `GEOPIPE_GITHUB_CLIENT_SECRET` (and, as a second option, the `GOOGLE` pair) before `make up` and the web UI asks visitors to sign in; each account is its own tenant. Create the OAuth app with callback `http://localhost:8080/auth/github/callback` (or your `GEOPIPE_PUBLIC_URL`). With none set the UI asks for an API key. Set your own `GEOPIPE_SESSION_SECRET` (32+ random bytes) for anything but local use ([ADR-0019](docs/adr/0019-sign-in-with-github-and-google.md)).
+
 Studio: the web UI has an Explore tab where you browse a registered dataset (images by split, ground-truth boxes, box statistics, licence and attribution) and, below it, a model view: pick a model and one of its stored benchmark runs (`make bench-spacenet` stores one per model) to see mAP, precision, recall and F1, the precision-recall curve, and true against predicted boxes on each image with a score threshold and a worst-images list. Run `make spacenet-data` and, with the stack up, `make register-builtin` to add SpaceNet Khartoum; datasets are listed per tenant plus the shared built-ins ([ADR-0015](docs/adr/0015-studio-in-the-frontend.md), [ADR-0016](docs/adr/0016-trainer-stage-and-registry.md)). Browser uploads of large files go straight to the store (CORS, measured up to 4.9 GB); the Train tab has the dataset zip upload with a progress bar (`scripts/dataset_upload_check.py`).
 
 Publishing: `make publish-model REPO=<user>/yolox-tiny-buildings` stages the fine-tuned YOLOX-tiny models (FP32 and INT8) with a model card for Hugging Face under CC BY-SA 4.0 (add `UPLOAD=1` and either `HF_TOKEN` or a saved `hf auth login` to upload). Only models that pass the ADR-0014 bar are accepted.
@@ -129,7 +131,7 @@ Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (ever
 
 ## Status and roadmap
 
-Slices V1-V8 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark, an HTTP API and a GPU detector. Durable job records (Postgres) and the studio are done; real sign-in (GitHub, then Google) is next. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
+Slices V1-V8 are done: the pipeline, RF-DETR and YOLOX, large rasters, plots, failure handling (retries, dead letters, stall timeouts), a COCO benchmark, an HTTP API and a GPU detector. Durable job records (Postgres) and the studio are done; sign-in with GitHub and Google is built too. See [`docs/SLICES.md`](docs/SLICES.md) for the build order, [`docs/PLAN.md`](docs/PLAN.md) for the plan and [`docs/adr/`](docs/adr) for the decisions.
 
 ## Contributing
 

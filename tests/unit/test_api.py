@@ -182,3 +182,25 @@ def test_job_list_adds_history_rows_after_live_ones_without_duplicates():
     assert [j["job_id"] for j in got] == ["new", "old", "ancient"]
     assert got[0]["state"] == "running"  # Valkey is the live truth
     assert [j["job_id"] for j in c.get("/jobs", headers=B).json()] == ["theirs"]
+
+
+def test_a_signed_token_names_the_tenant_when_the_api_has_the_secret():
+    from geopipe import identity
+
+    secret = "k" * 40
+    s3 = store.client("http://public:8333")
+    c = TestClient(create_app(FakeRedis(), s3, s3, "imagery", {"ka": "acme"}, DEFAULT_QUOTAS,
+                              session_secret=secret))
+
+    def bearer(**claims):
+        return {"Authorization": "Bearer " + identity.sign(secret, claims, ttl=60)}
+
+    body = c.post("/uploads", headers=bearer(tenant="github-7")).json()
+    assert body["key"].startswith("tenants/github-7/uploads/")
+    for bad in (bearer(tenant="shared"), bearer(tenant="../x"), bearer(), bearer(tenant=5),
+                {"Authorization": "Bearer " + identity.sign("j" * 40, {"tenant": "x"}, 60)},
+                {"Authorization": "Bearer garbage"}):
+        assert c.post("/uploads", headers=bad).status_code == 401
+    assert c.post("/uploads", headers=A).status_code == 200  # API keys still work
+    plain = client()  # no secret configured: a token is just a bad credential
+    assert plain.post("/uploads", headers=bearer(tenant="github-7")).status_code == 401

@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from . import store
+from . import identity, store
 from .api_studio import add_dataset_routes, add_model_routes, add_train_routes
 from .jobs import submit_job
 from .messages import Options
@@ -65,12 +65,20 @@ DEFAULT_QUOTAS = Quotas()
 
 
 def create_app(r: redis.Redis, s3, public_s3, bucket: str, keys: dict[str, str],
-               quotas: Quotas = DEFAULT_QUOTAS, history=None) -> FastAPI:
+               quotas: Quotas = DEFAULT_QUOTAS, history=None,
+               session_secret: str | None = None) -> FastAPI:
     """`public_s3` signs URLs with the endpoint clients can reach (it may differ from `s3`).
-    `history` (Postgres) answers for jobs Valkey no longer has."""
+    `history` (Postgres) answers for jobs Valkey no longer has. With `session_secret`,
+    `Authorization: Bearer <token>` signed by `geopipe.identity` (the web UI sends one after a
+    GitHub or Google sign-in) names the tenant, beside the API keys."""
     app = FastAPI(title="geo-pipeline", version="0.1.0")
 
-    def tenant(x_api_key: str = Header(default="")) -> str:
+    def tenant(x_api_key: str = Header(default=""), authorization: str = Header(default="")) -> str:
+        if session_secret and authorization.startswith("Bearer "):
+            claims = identity.verify(session_secret, authorization.removeprefix("Bearer "))
+            if claims and isinstance(claims.get("tenant"), str) and identity.TENANT.fullmatch(
+                    claims["tenant"]) and claims["tenant"] != SHARED:
+                return claims["tenant"]
         for k, t in keys.items():  # constant-time compare, no early exit on a prefix match
             if secrets.compare_digest(k, x_api_key):
                 return t
@@ -184,4 +192,5 @@ def app_from_env() -> FastAPI:  # `uvicorn geopipe.api:app_from_env --factory`
     public = store.client(os.environ.get("S3_PUBLIC_ENDPOINT"))
     r = bus.connect()
     return create_app(r, s3, public, bucket, parse_keys(os.environ["GEOPIPE_API_KEYS"]),
-                      Quotas.from_env(), bus.history_sink())
+                      Quotas.from_env(), bus.history_sink(),
+                      os.environ.get("GEOPIPE_SESSION_SECRET") or None)
