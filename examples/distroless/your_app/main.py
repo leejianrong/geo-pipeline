@@ -1,5 +1,5 @@
 """Stand-in for your application: GDAL, numpy and a compiled package all work without a shell."""
-import runpy, sys
+import sys
 
 import numpy as np
 import orjson
