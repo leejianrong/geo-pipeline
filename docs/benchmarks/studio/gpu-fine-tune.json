@@ -1,0 +1,49 @@
+{
+  "run": {
+    "schema_version": 1,
+    "id": "run-6d80ec7bfbbb",
+    "kind": "bench",
+    "state": "done",
+    "model_id": "model-981a514a56c8",
+    "dataset_id": "spacenet-khartoum",
+    "split": "test",
+    "scorer": "in-process",
+    "conf": 0.05,
+    "iou": 0.65,
+    "metrics": {
+      "map": 0.2624937043025506,
+      "map50": 0.5435815873114487,
+      "ar100": 0.43549019607843126,
+      "precision": 0.6629526462395543,
+      "recall": 0.4666666666666667,
+      "f1": 0.5477560414269276,
+      "tp": 238.0,
+      "fp": 121.0,
+      "fn": 272.0,
+      "detections": 2596.0,
+      "median_latency": 0.12914615450426936,
+      "mean_detect_seconds": 0.12650124193393053
+    },
+    "created_at": 1794795574.8210018,
+    "scope": "own"
+  },
+  "training": {
+    "preset": "fast",
+    "dataset": "spacenet-khartoum",
+    "epochs": 60,
+    "final_val_ap": 0.48,
+    "gpu": "RTX 3080 Ti (shared), pueue job 9",
+    "base": "YOLOX-tiny 416"
+  },
+  "reference": {
+    "model": "yolox-tiny-buildings",
+    "map": 0.27,
+    "map50": 0.564,
+    "source": "docs/benchmarks/studio/inprocess-vs-pipeline.json"
+  },
+  "detector_check": {
+    "job": "one pipeline job, model user:model-981a514a56c8, one test tile",
+    "ground_truth_boxes": 39,
+    "detected": 44
+  }
+}
