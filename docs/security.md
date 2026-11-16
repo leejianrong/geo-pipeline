@@ -1,5 +1,7 @@
 # Image vulnerabilities
 
+See [distroless.md](distroless.md) for a runtime image with no High or Critical findings (the shell-free route for the base and for your own app).
+
 `make scan` runs Trivy over our images (`geo-pipeline-*`) and fails on any HIGH or CRITICAL finding that has a fix. Build the images first. Findings with no fix are not gated, because only the vendor can resolve them.
 
 ## State on 2026-11-16 (Trivy, HIGH and CRITICAL)
