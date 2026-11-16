@@ -74,3 +74,12 @@ def test_has_data_selects_windows_over_valid_area_only():
     wins = [w for w in windows(2000, 1000, 640, 0) if has_data(valid, w, 2000, 1000)]
     assert wins and all(w.x_off < 1000 for w in wins)
     assert len(wins) < len(windows(2000, 1000, 640, 0))
+
+
+def test_traced_merge_says_which_raw_boxes_each_box_absorbed():
+    from geopipe.merge import merge_traced
+    per_tile = {0: tile(0, [box(530, 100, 600, 180, 0.9), box(462, 300, 562, 380)]),
+                1: tile(512, [box(18, 100, 88, 180, 0.7), box(0, 300, 50, 380)])}
+    merged, cut = merge_traced(per_tile, 1152, 640, overlap=0.2, iou=0.5)
+    assert [m["from"] for m in merged] == [[[0, 0], [1, 0]], [[0, 1]]]
+    assert cut == [{"tile": 1, "index": 1}]

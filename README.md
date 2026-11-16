@@ -67,7 +67,7 @@ curl -s -H "$H" localhost:8000/jobs/$JOB                              # state an
 curl -s "$(curl -s -H "$H" localhost:8000/jobs/$JOB/result | jq -r .url)" > result.geojson
 ```
 
-`GET /jobs` lists the tenant's newest jobs, and `/jobs/{id}/result` also returns a preview image URL and the raster size. `options` takes the same fields as the CLI (below). The keys are placeholders: real authentication, per-tenant quotas and a durable job list come with the hosted service. Presigned URLs are signed for `S3_PUBLIC_ENDPOINT` (`http://localhost:8333` in compose), which must be the address clients reach the store on.
+`GET /jobs` lists the tenant's newest jobs, and `/jobs/{id}/result` also returns a preview image URL and the raster size. `GET /inspect` returns a URL for the Inspector's data: the cut, every tile's raw boxes and, for each merged box, the raw boxes it absorbed (`inspect.json`, from the tenant's latest finished job only; each job replaces it, and rasters over 200,000 raw boxes get none). `options` takes the same fields as the CLI (below). The keys are placeholders: real authentication, per-tenant quotas and a durable job list come with the hosted service. Presigned URLs are signed for `S3_PUBLIC_ENDPOINT` (`http://localhost:8333` in compose), which must be the address clients reach the store on.
 
 ## Configuration
 

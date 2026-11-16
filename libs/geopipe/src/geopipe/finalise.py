@@ -10,7 +10,8 @@ from osgeo import osr
 
 from . import bus
 from .geo import pixel_to_map
-from .merge import merge_boxes
+from .inspector import MAX_INSPECT_BOXES, build_inspect, inspect_key
+from .merge import merge_traced
 from .messages import DEADLINES, JOBS_DONE, Detection, Done
 
 osr.UseExceptions()
@@ -26,9 +27,8 @@ def _to_wgs84(wkt: str) -> osr.CoordinateTransformation:
     return osr.CoordinateTransformation(src, dst)
 
 
-def build_geojson(job_id: str, meta: dict, per_tile: dict[int, dict], missing: list[int]) -> dict:
+def build_geojson(job_id: str, meta: dict, boxes: list[dict], missing: list[int]) -> dict:
     gt, to_ll = meta["geotransform"], _to_wgs84(meta["crs_wkt"])
-    boxes = merge_boxes(per_tile, meta["width"], meta["height"], meta["overlap"], meta["iou"])
     features = []
     for b in boxes:
         corners = ((b["x1"], b["y1"]), (b["x2"], b["y1"]), (b["x2"], b["y2"]),
@@ -67,11 +67,19 @@ def finalise(r, s3, job_id: str) -> bool:
         dets_key = f"job:{job_id}:dets"
         per_tile = {int(i): json.loads(v) for i, v in r.hgetall(dets_key).items()}
         missing = [i for i in range(total) if i not in per_tile]
-        geojson = build_geojson(job_id, meta, per_tile, missing)
+        merged, cut = merge_traced(per_tile, meta["width"], meta["height"], meta["overlap"],
+                                   meta["iou"])
+        geojson = build_geojson(job_id, meta, merged, missing)
         # Deterministic key: finalising twice overwrites the same object.
         out_key = f"tenants/{tenant_id}/results/{job_id}.geojson"
         s3.put_object(Bucket=meta["bucket"], Key=out_key, ContentType="application/geo+json",
                       Body=json.dumps(geojson).encode())
+        raw = sum(len(t["boxes"]) for t in per_tile.values())
+        if raw <= MAX_INSPECT_BOXES:  # the Inspector shows the latest job only: overwrite
+            s3.put_object(Bucket=meta["bucket"], Key=inspect_key(tenant_id),
+                          ContentType="application/json", Body=json.dumps(
+                              build_inspect(job_id, meta, per_tile, merged, cut, missing),
+                              separators=(",", ":")).encode())
         for start in range(0, total, 1000):  # DeleteObjects accepts at most 1000 keys
             s3.delete_objects(Bucket="scratch", Delete={"Objects": [
                 {"Key": f"tenants/{tenant_id}/{job_id}/{i}.png"}
@@ -81,7 +89,7 @@ def finalise(r, s3, job_id: str) -> bool:
         state = "incomplete" if missing else "done"
         bus.set_status(
             r, job_id, state, output_uri=uri, finalise_seconds=round(time.monotonic() - started, 3),
-            boxes_raw=sum(len(t["boxes"]) for t in per_tile.values()),
+            boxes_raw=raw,
             boxes_final=len(geojson["features"]), done_at=time.time())
         r.zrem(DEADLINES, job_id)
         bus.publish(r, JOBS_DONE, Done(tenant_id=tenant_id, job_id=job_id, status=state,
