@@ -52,11 +52,12 @@ LABEL org.opencontainers.image.source="https://github.com/leejianrong/geo-pipeli
 COPY --from=gdal /opt/gdal /opt/gdal
 COPY --from=bindings /wheels /wheels
 RUN apt-get update \
+    && apt-get -y --no-install-recommends upgrade \
     && apt-get install -y --no-install-recommends $(cat /opt/gdal/runtime-packages.txt) \
     && rm -rf /var/lib/apt/lists/* \
     && echo /opt/gdal/lib > /etc/ld.so.conf.d/gdal.conf && ldconfig \
     && if ldd /opt/gdal/lib/libgdal.so | grep "not found"; then exit 1; fi \
-    && pip install --no-cache-dir "numpy>=2,<3" /wheels/*.whl && rm -rf /wheels
+    && pip install --no-cache-dir -U pip setuptools wheel "numpy>=2,<3" /wheels/*.whl && rm -rf /wheels
 ENV PATH=/opt/gdal/bin:$PATH GDAL_DATA=/opt/gdal/share/gdal
 COPY verify.py /usr/local/bin/verify-gdal
 CMD ["python", "/usr/local/bin/verify-gdal"]
