@@ -10,6 +10,7 @@ import json
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
@@ -70,15 +71,16 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--repo", required=True, help="Hub model repo, e.g. user/yolox-tiny-buildings")
     p.add_argument("--models", default=str(ROOT / "data" / "models"))
-    p.add_argument("--stage", default=str(ROOT / "data" / "out" / "hub"))
-    p.add_argument("--upload", action="store_true", help="push to the Hub (needs HF_TOKEN)")
+    p.add_argument("--stage", help="folder to stage into (default: a new temporary folder)")
+    p.add_argument("--upload", action="store_true",
+                   help="push to the Hub (needs HF_TOKEN or a saved `hf auth login`)")
     a = p.parse_args()
     r4, r1 = load_results(4), load_results(1)
     for _, (backend, _, _) in FILES.items():
         check_bar(backend, r4)
     commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True,
                             cwd=ROOT, check=True).stdout.strip()
-    stage = Path(a.stage)
+    stage = Path(a.stage or tempfile.mkdtemp(prefix="hub-stage-"))  # data/out is root-owned
     stage.mkdir(parents=True, exist_ok=True)
     for hub, (_, local, _) in FILES.items():
         shutil.copy(Path(a.models) / RUN / local, stage / hub)
@@ -89,7 +91,7 @@ def main() -> None:
         return
     from huggingface_hub import HfApi  # noqa: PLC0415  (only needed to upload)
 
-    api = HfApi()  # reads HF_TOKEN
+    api = HfApi()  # HF_TOKEN, else the login saved by `hf auth login`
     api.create_repo(a.repo, repo_type="model", exist_ok=True)
     api.upload_folder(folder_path=str(stage), repo_id=a.repo, repo_type="model")
     print(f"uploaded to https://huggingface.co/{a.repo}", file=sys.stderr)

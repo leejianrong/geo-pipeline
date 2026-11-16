@@ -92,7 +92,7 @@ export-rfdetr:  ## export a fine-tuned RF-DETR for the slim image (RUN=rfdetr-sp
 	  /scripts/export_rfdetr_onnx.py --variant $(or $(VARIANT),Small) --out /data/models/$(RUN) \
 	  --weights /data/models/$(RUN)/checkpoint_best_total.pth
 
-publish-model:  ## stage YOLOX-tiny and its model card for Hugging Face (REPO=user/name; UPLOAD=1 pushes, needs HF_TOKEN)
+publish-model:  ## stage YOLOX-tiny and its model card for Hugging Face (REPO=user/name; UPLOAD=1 pushes, needs HF_TOKEN or `hf auth login`)
 	uv run --python $(PY) --with huggingface_hub python scripts/publish_model.py --repo $(REPO) $(if $(UPLOAD),--upload)
 
 quantise:  ## INT8-quantise a fine-tuned YOLOX (RUN=yolox-spacenet-tiny-416) -> data/models/$(RUN)/yolox_buildings_int8.onnx

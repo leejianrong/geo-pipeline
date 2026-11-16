@@ -52,3 +52,14 @@ def test_preprocess_resizes_to_a_square_and_normalises_like_imagenet():
     assert x.shape == (1, 3, 384, 384) and x.dtype == np.float32
     assert x[0, 0, 0, 0] == pytest.approx((1 - 0.485) / 0.229, abs=1e-4)
     assert x[0, 2, 5, 5] == pytest.approx((1 - 0.406) / 0.225, abs=1e-4)
+
+
+def test_fine_tuned_head_with_three_classes_keeps_each_class_id():
+    """Decoder only: a head of C classes plus the no-object slot keeps ids 0..C-1. Real multi-class
+    training has not been run on a GPU."""
+    names = {0: "building", 1: "road", 2: "tree"}
+    boxes, logits = outputs((0, 0.5, 0.5, 0.2, 0.2, 0, 2.0), (1, 0.2, 0.2, 0.1, 0.1, 1, 3.0),
+                            (2, 0.8, 0.8, 0.1, 0.1, 2, 4.0), (3, 0.4, 0.4, 0.1, 0.1, 3, 6.0),
+                            classes=4)
+    got = rfdetr_boxes(boxes, logits, shape=(100, 100), conf=0.5, names=names)
+    assert {(b.class_id, b.class_name) for b in got} == {(0, "building"), (1, "road"), (2, "tree")}
