@@ -125,7 +125,9 @@ docker run --rm ghcr.io/leejianrong/geo-gdal:gdal3.12-py3.12   # python 3.12.x n
 docker run --rm ghcr.io/leejianrong/geo-gdal:gdal3.13-py3.13
 ```
 
-Tags (amd64): `gdal<minor>-py<python>` for each combination, `py3.12` and `py3.13` for the default GDAL (3.12), and immutable `py<python>-gdal<full>-numpy<numpy>` such as `py3.12-gdal3.12.4-numpy2.5.4`. The versions are listed in [`base/matrix.json`](base/matrix.json). The default command checks array round trips for six dtypes, `OpenArray` memory sharing, `/vsis3/` and the GTiff, COG and PNG drivers. Common drivers (including NetCDF, HDF5 and PostgreSQL) are enabled; HDF4, FITS, HEIF and a few others are not.
+For a distroless runtime (no shell, no package manager, no High or Critical findings in a Trivy scan), build your app on `geo-gdal` and copy the result into `distroless/cc`: [docs/distroless.md](docs/distroless.md).
+
+Tags (amd64): `gdal<minor>-py<python>` for each combination, `py3.12` and `py3.13` for the default GDAL (3.13), and immutable `py<python>-gdal<full>-numpy<numpy>` such as `py3.12-gdal3.13.3-numpy2.5.5`. The versions are listed in [`base/matrix.json`](base/matrix.json). The default command checks array round trips for six dtypes, `OpenArray` memory sharing, `/vsis3/` and the GTiff, COG and PNG drivers. Common drivers (including NetCDF, HDF5 and PostgreSQL) are enabled; HDF4, FITS, HEIF and a few others are not.
 
 Build locally: `make base` (default GDAL, both Pythons) or `make base-all` (every combination, about 25 minutes).
 

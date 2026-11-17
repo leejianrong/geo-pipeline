@@ -1,8 +1,8 @@
 name: ci-base
-# Builds and verifies every GDAL x Python image in base/matrix.json. Runs only when base/ changes.
+# Builds and verifies every GDAL x Python image in base/matrix.json. Runs only when base/ or the distroless example changes.
 on:
   pull_request:
-    paths: ["base/**", ".github/workflows/ci-base.yml"]
+    paths: ["base/**", "examples/distroless/**", ".github/workflows/ci-base.yml"]
 concurrency:
   group: ci-base-${{ github.ref }}
   cancel-in-progress: true
@@ -30,4 +30,13 @@ jobs:
       - run: |
           for py in $(jq -r '.python[]' base/matrix.json); do
             base/build.sh ${{ matrix.gdal }} "$py"
+          done
+      # The distroless example (docs/distroless.md) on the default GDAL: it must still run verify.py.
+      - if: ${{ matrix.gdal == '3.13' }}
+        run: |
+          for py in $(jq -r '.python[]' base/matrix.json); do
+            docker build -q --build-arg PY="$py" --build-arg BASE="geo-gdal:gdal${{ matrix.gdal }}-py$py" \
+              -t "distroless:$py" examples/distroless
+            docker run --rm "distroless:$py"
+            docker run --rm -v "$PWD/base/verify.py:/v.py:ro" "distroless:$py" /v.py
           done
