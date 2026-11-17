@@ -24,12 +24,14 @@ What is left:
 
 ## Base images on GHCR (`geo-gdal`)
 
-Scanned on 2026-11-16 after the first publish with GDAL 3.13 (HIGH and CRITICAL that have a fix):
+Scanned from the registry (`trivy image --image-src remote`) on 2026-11-17, after the republish with GDAL 3.13 and the pip, setuptools and apt upgrades. All severities, then only those with a fix:
 
-| Tag | Fixable |
-|---|---|
-| `py3.12`, `gdal3.13-py3.12` | 0 |
-| `py3.13`, `gdal3.13-py3.13` | 5: vendored `msgpack`, `urllib3` and `setuptools 70.3.0` from the Python base image |
-| `gdal3.11-*`, `gdal3.12-*` | 1 to 6: the same, plus GDAL CVE-2026-49014 (netCDF driver, fixed only in 3.13.1 and later) |
+| Tag | Critical | High | Medium | Low | With a fix (C / H / M / L) |
+|---|---|---|---|---|---|
+| `py3.12`, `py3.13`, `gdal3.13-*` | 1 | 121 | 157 | 309 | 0 / 1 / 1 / 1 |
+| `gdal3.12-*`, `gdal3.11-*` | 1 | 122 | 151 | 310 | 0 / 2 / 1 / 3 |
 
-The runtime stage of `base/Dockerfile` now runs `apt-get upgrade` and upgrades `pip`, `setuptools` and `wheel`, which clears the Python findings and the libpq5 one in the local build. The 3.11 and 3.12 tags keep the GDAL finding: use `gdal3.13-*` (the default `py3.12` and `py3.13` tags) if that matters. After this PR merges, `publish-base` republishes every tag.
+- Before the fix, the default tags had 5 fixable High findings (vendored `msgpack`, `urllib3` and `setuptools` from the Python image, plus libpq5). The one left is `setuptools 70.3.0` (CVE-2025-47273): Trivy reads it from a lower layer of the Python base image, and the final filesystem only has 84.x.
+- The 3.11 and 3.12 tags also carry GDAL CVE-2026-49014 (netCDF driver, fixed only in 3.13.1 and later). Use the 3.13 tags if that matters.
+- About 95% of the findings have no fix: Debian packages that Debian has not patched, among them libxml2 CVE-2026-6653 (the one Critical). [distroless.md](distroless.md) removes most of them: 0 Critical, 0 High.
+- Scan with `--image-src remote`: a local Docker with the containerd image store can lose layers of multi-platform images, and Trivy then fails.
