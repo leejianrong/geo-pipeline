@@ -38,6 +38,8 @@ Trivy on the example, built on the 2026-11-16 base (all severities, with and wit
 - A missing library shows up at run time as an `ImportError` or `error while loading shared libraries`. If you add a package that loads a library with `dlopen` (not found by `ldd`), add the library's directory to the `collect-libs.sh` call.
 - The image does not update itself: rebuild with `--pull` to pick up fixes.
 
-## Not covered
+## The pipeline on distroless
 
-The pipeline's own stage images (`stages/*`) still use the slim base. Moving them over is possible with this recipe, but their health checks and `docker compose exec` use would need to change first.
+`stages/Dockerfile.distroless` builds the slicer and the postprocess stage (the two that use GDAL) with this recipe, and `compose.distroless.yaml` swaps them in. `make up-distroless` starts that stack and `make e2e-distroless` runs the full stack tests on it: 88 pass, the same as on the normal images, and CI runs it too. So the pipeline doubles as the check that `geo-gdal` and the distroless recipe work. In that stack `docker compose exec slicer sh` fails, because there is no shell.
+
+The other stages (api, frontend, trainer, detector) use `python:slim` and are not GDAL users, so they are not part of this. They would need their health checks and `exec` use looked at first.
